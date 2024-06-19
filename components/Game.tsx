@@ -1,15 +1,27 @@
-'use client';
-import { useOptimistic, useEffect, useState, useCallback, useRef, useTransition } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import clsx from 'clsx';
-import { v4 as uuidv4 } from 'uuid';
-import asTable from 'as-table';
-import { saveBoard,  evolveBoard } from '@/app/api/action';
-import Grid from '@/app/components/Grid';
-import Cell from '@/app/components/Cell';
-import { CellGrid } from '@/app/indexer/indexer';
-import { HEIGHT, WIDTH } from '@/app/indexer/indexer';
-import { advanceGrid, getCells, getLiveNeighbors, getCellIdx } from '@/app/indexer/indexer';
+"use client";
+import {
+  useOptimistic,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useTransition,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import clsx from "clsx";
+import { v4 as uuidv4 } from "uuid";
+import asTable from "as-table";
+import { saveBoard, evolveBoard } from "@/app/api/action";
+import Grid from "@/app/components/Grid";
+import Cell from "@/app/components/Cell";
+import { CellGrid } from "@/app/indexer/indexer";
+import { HEIGHT, WIDTH } from "@/app/indexer/indexer";
+import {
+  advanceGrid,
+  getCells,
+  getLiveNeighbors,
+  getCellIdx,
+} from "@/app/indexer/indexer";
 export const height = 40;
 export const width = 40;
 export const MAX_BOARD_GENERATIONS = 150;
@@ -69,30 +81,28 @@ type BoardState = {
   evolved?: boolean;
 };
 
-export function EvolveBoardPage({ board,  }: { board: Board; }) {
+export function EvolveBoardPage({ board }: { board: Board }) {
   const [grid, setGrid] = useState<CellGrid>(() => getCells(width));
   const router = useRouter();
   const searchParams = useSearchParams();
   let evolvedBoard = evolveBoard.bind(null, board);
-  let userId = searchParams.get('userId') || "";
+  let userId = searchParams.get("userId") || "";
   return (
     <>
-    <div tw="flex w-full">
-      <div tw="ml-3 flex rounded-md shadow">
-      <button
-      onClick={() => {
-        evolveBoard(board, userId);
-      }}
-    >
-        Evolve
-      </button>
+      <div tw="flex w-full">
+        <div tw="ml-3 flex rounded-md shadow">
+          <button
+            onClick={() => {
+              evolveBoard(board, userId);
+            }}
+          >
+            Evolve
+          </button>
+        </div>
+        <div tw="ml-3 flex rounded-md shadow"></div>
       </div>
-      <div tw="ml-3 flex rounded-md shadow">
-      </div>
-    </div>
     </>
-  )
-
+  );
 }
 
 function CreateCells(): Cell[] {
@@ -184,7 +194,7 @@ export function CreateBoard() {
     boardId: uuidv4(),
     cells: [],
     generation: 1,
-    lastEvolvedUser: '',
+    lastEvolvedUser: "",
     grid: grid,
     lastEvolvedAt: 0,
     users: [],
@@ -241,13 +251,13 @@ export function CreateBoard() {
                       y={20 * i}
                       width={20}
                       height={20}
-                      fill={grid[i] && grid[i][j] ? 'black' : 'white'}
+                      fill={grid[i] && grid[i][j] ? "black" : "white"}
                       onClick={() => handleCellClick(i, j)}
                       style={{
-                        width: '20',
-                        height: '20',
-                        backgroundColor: 'white',
-                        border: '1px solid black',
+                        width: "20",
+                        height: "20",
+                        backgroundColor: "white",
+                        border: "1px solid black",
                       }}
                     />
                   );
@@ -265,7 +275,9 @@ export function CreateBoard() {
           <button onClick={() => applyPattern(patterns.glider)}>Glider</button>
         </div>
         <div tw="ml-3 flex rounded-md shadow">
-          <button onClick={() => applyPattern(patterns.gosperGliderGun)}>Gosper Glider Gun</button>
+          <button onClick={() => applyPattern(patterns.gosperGliderGun)}>
+            Gosper Glider Gun
+          </button>
         </div>
         <div tw="ml-3 flex rounded-md shadow">
           <button
@@ -274,10 +286,10 @@ export function CreateBoard() {
                 boardId: uuidv4(),
                 cells: [],
                 generation: 1,
-                lastEvolvedUser: 'dummy',
+                lastEvolvedUser: "dummy",
                 grid: grid,
                 lastEvolvedAt: new Date().getTime(),
-                users: ['dummy'],
+                users: ["dummy"],
                 userGenerations: { dummy: 1 },
                 spawned_at: new Date().getTime(),
                 isExtinct: false,
@@ -318,12 +330,12 @@ export default function Game() {
       <p> Create board view </p>
 
       <p>
-        Evolve on{' '}
+        Evolve on{" "}
         <a
           className="text-fc-purple underline"
           href="https://warpcast.com/0x0f/"
           target="_blank"
-        ></a>{' '}
+        ></a>{" "}
       </p>
       <div>
         <CreateBoard />

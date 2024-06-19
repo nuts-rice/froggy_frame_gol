@@ -1,12 +1,12 @@
-import Link from 'next/link';
-import { Board } from '@/app/components/Game';
-import redis from '@/app/lib/redis';
+import Link from "next/link";
+import { Board } from "@/app/components/Game";
+import redis from "@/app/lib/redis";
 const SEVEN_DAYS_IN_MS = 1000 * 60 * 60 * 24 * 7;
 
 async function getBoards() {
   try {
     const boardIds = await redis.zrange(
-      'boards_by_date',
+      "boards_by_date",
       Date.now(),
       Date.now() - SEVEN_DAYS_IN_MS,
       {
@@ -45,8 +45,13 @@ export default async function Page() {
           {boards.map((board) => {
             return (
               <div key={board.boardId}>
-                <a href={`components/Boards/${board.boardId}`} className="underline">
-                  <p className="text-md sm:text-xl mx-4">{board.lastEvolvedUser}</p>
+                <a
+                  href={`components/Boards/${board.boardId}`}
+                  className="underline"
+                >
+                  <p className="text-md sm:text-xl mx-4">
+                    {board.lastEvolvedUser}
+                  </p>
                 </a>
               </div>
             );

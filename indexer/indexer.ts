@@ -12,7 +12,11 @@ export const getCells = (idx: number): CellGrid => {
   return _grid;
 };
 
-export const getLiveNeighbors = (grid: CellGrid, x: number, y: number): number => {
+export const getLiveNeighbors = (
+  grid: CellGrid,
+  x: number,
+  y: number,
+): number => {
   let count = 0;
   if (grid[x]![y - 1]) {
     count++;
@@ -57,4 +61,3 @@ export const advanceGrid = (grid: CellGrid): CellGrid => {
   });
   return newCellGrid;
 };
-
