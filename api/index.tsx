@@ -6,6 +6,7 @@ import { handle } from "frog/vercel";
 import { redis } from "../lib/redis";
 import { abi } from "../lib/FunFunGameOfLifeABI";
 import { arbitrum } from "viem/chains";
+import {Board} from '../components/Game'
 // Uncomment to use Edge Runtime.
 // export const config = {
 //   runtime: 'edge',
@@ -71,9 +72,9 @@ app.frame("/", (c) => {
     ],
   });
 });
-app.frame("/board", (c) => {
-  // const { boardId } = c
-  // const board =
+app.frame("/board/:boardId", async (c) => {
+  const  boardId  = c.req.param('boardId')
+  const board = await redis.hgetall(`board:${boardId}`)
   return c.res({
     image: (
       <div
@@ -93,7 +94,7 @@ app.frame("/board", (c) => {
         <div
           style={{
             color: "white",
-            fontSize: 60,
+            fontSize: 24,
             fontStyle: "normal",
             letterSpacing: "-0.025em",
             lineHeight: 1.4,
@@ -102,12 +103,29 @@ app.frame("/board", (c) => {
             display: "flex",
             whiteSpace: "pre-wrap",
           }}
-        ></div>
+        >
+       <h1> Board {board.boardId} loaded </h1>
+        <h1> Generation #{board.generations} </h1>
+        </div>
       </div>
     ),
     intents: [<Button value="Evolve">Evolve this board</Button>],
   });
 });
+
+app.transaction("new_board_tx", (c) => {
+  const {address} = c  
+    return c.contract({
+    abi,
+    chainId: `eip155:${arbitrum.id}`,
+    functionName: "evolve",
+    args: [boardId, address as `0x${string}`],
+    to: process.env["CONTRACT_ADDRESS"] as `0x${string}`,
+    value: parseEther("0.00028"),
+    attribution: true,
+    });
+ 
+})
 
 app.transaction("/evolve_tx", (c) => {
   const { address, boardId } = c;

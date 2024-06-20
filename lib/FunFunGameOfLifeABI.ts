@@ -8,9 +8,9 @@ export const abi = [
       {
         name: "Board",
         type: "tuple[][]",
-        internalType: "struct Cell[]",
+        internalType: "struct Board",
         components: [
-          { name: "cells", type: "tuple[][]", internalType: "Cell" },
+          { name: "grid", type: "tuple[][]", internalType: "CellGrid" },
           { name: "time", type: "uint256", internalType: "uint256" },
           { name: "generation", type: "uint256", internalType: "uint256" },
         ],
@@ -31,14 +31,6 @@ export const abi = [
     stateMutability: "view",
   },
 
-  { type: "recieve", stateMutability: "payable" },
-  {
-    type: "function",
-    name: "claimCell",
-    inputs: [{ name: "index", type: "uint256" }],
-    outputs: [],
-    stateMutability: "payable",
-  },
   {
     type: "function",
     name: "evolve",
@@ -64,14 +56,27 @@ export const abi = [
         indexed: true,
         internalType: "address",
       },
-    ],
-    outputs: [
       {
-        name: "board_id",
+        name: "price",
         type: "uint256",
         indexed: false,
         internalType: "uint256",
       },
+
+    ],
+
+    outputs: [
+      {
+        name: "Board",
+        type: "tuple[][]",
+        internalType: "struct Board",
+        components: [
+          { name: "grid", type: "tuple[][]", internalType: "CellGrid" },
+          { name: "time", type: "uint256", internalType: "uint256" },
+          { name: "generation", type: "uint256", internalType: "uint256" },
+          {name: "board_id", type: "uint256",  indexed: false, internalType: "uint256"  },
+        ]
+      }
     ],
     anonymous: false,
   },
@@ -100,6 +105,5 @@ export const abi = [
     ],
     anonymous: false,
   },
-];
-
+    ]
 export default abi;
