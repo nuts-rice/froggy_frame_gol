@@ -62,7 +62,6 @@ export const abi = [
         indexed: false,
         internalType: "uint256",
       },
-
     ],
 
     outputs: [
@@ -74,9 +73,14 @@ export const abi = [
           { name: "grid", type: "tuple[][]", internalType: "CellGrid" },
           { name: "time", type: "uint256", internalType: "uint256" },
           { name: "generation", type: "uint256", internalType: "uint256" },
-          {name: "board_id", type: "uint256",  indexed: false, internalType: "uint256"  },
-        ]
-      }
+          {
+            name: "board_id",
+            type: "uint256",
+            indexed: false,
+            internalType: "uint256",
+          },
+        ],
+      },
     ],
     anonymous: false,
   },
@@ -105,5 +109,5 @@ export const abi = [
     ],
     anonymous: false,
   },
-    ]
+];
 export default abi;

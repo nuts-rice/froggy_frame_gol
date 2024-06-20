@@ -6,7 +6,7 @@ import { handle } from "frog/vercel";
 import { redis } from "../lib/redis";
 import { abi } from "../lib/FunFunGameOfLifeABI";
 import { arbitrum } from "viem/chains";
-import {Board} from '../components/Game'
+import { Board } from "../components/Game";
 // Uncomment to use Edge Runtime.
 // export const config = {
 //   runtime: 'edge',
@@ -73,49 +73,53 @@ app.frame("/", (c) => {
   });
 });
 app.frame("/board/:boardId", async (c) => {
-  const  boardId  = c.req.param('boardId')
-  const board = await redis.hgetall(`board:${boardId}`)
   return c.res({
-    image: (
-      <div
-        style={{
-          alignItems: "center",
-          background: "black",
-          backgroundSize: "100% 100%",
-          display: "flex",
-          flexDirection: "column",
-          flexWrap: "nowrap",
-          height: "100%",
-          justifyContent: "center",
-          textAlign: "center",
-          width: "100%",
-        }}
-      >
-        <div
-          style={{
-            color: "white",
-            fontSize: 24,
-            fontStyle: "normal",
-            letterSpacing: "-0.025em",
-            lineHeight: 1.4,
-            marginTop: 30,
-            padding: "0 120px",
-            display: "flex",
-            whiteSpace: "pre-wrap",
-          }}
-        >
-       <h1> Board {board.boardId} loaded </h1>
-        <h1> Generation #{board.generations} </h1>
-        </div>
-      </div>
-    ),
+    image: "board_img/:boardId",
     intents: [<Button value="Evolve">Evolve this board</Button>],
   });
 });
 
+app.image("board_img/:boardId", async (c) => {
+  const boardId = c.req.param("boardId");
+  const board = await redis.hgetall(`board:${boardId}`);
+  return c.res(
+    <div
+      style={{
+        alignItems: "center",
+        background: "black",
+        backgroundSize: "100% 100%",
+        display: "flex",
+        flexDirection: "column",
+        flexWrap: "nowrap",
+        height: "100%",
+        justifyContent: "center",
+        textAlign: "center",
+        width: "100%",
+      }}
+    >
+      <div
+        style={{
+          color: "white",
+          fontSize: 20,
+          fontStyle: "normal",
+          letterSpacing: "-0.025em",
+          lineHeight: 1.4,
+          marginTop: 15,
+          padding: "0 120px",
+          display: "flex",
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        <h1> Board {board.boardId} loaded </h1>
+        <h1> Generation #{board.generations} </h1>
+      </div>
+    </div>,
+  );
+});
+
 app.transaction("new_board_tx", (c) => {
-  const {address} = c  
-    return c.contract({
+  const { address } = c;
+  return c.contract({
     abi,
     chainId: `eip155:${arbitrum.id}`,
     functionName: "evolve",
@@ -123,9 +127,8 @@ app.transaction("new_board_tx", (c) => {
     to: process.env["CONTRACT_ADDRESS"] as `0x${string}`,
     value: parseEther("0.00028"),
     attribution: true,
-    });
- 
-})
+  });
+});
 
 app.transaction("/evolve_tx", (c) => {
   const { address, boardId } = c;
