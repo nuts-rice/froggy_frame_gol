@@ -2,8 +2,8 @@ export default function Card({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        height: 1005,
-        width: 1005,
+        height: 1200,
+        width: 1200,
         justifyContent: "center",
         alignItems: "center",
         display: "flex",

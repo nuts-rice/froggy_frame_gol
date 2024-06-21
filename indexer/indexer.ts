@@ -56,6 +56,14 @@ export const advanceGrid = (grid: CellGrid): CellGrid => {
   Object.keys(newCellGrid).forEach((col) => {
     newCellGrid[col]!.forEach((cell: any, rowIdx: any) => {
       if (cell) {
+        if (
+          getLiveNeighbors(grid, +col, rowIdx) < 2 ||
+          getLiveNeighbors(grid, +col, rowIdx) > 3
+        ) {
+          ToDie.push([+col, rowIdx]);
+        } else {
+          ToLive.push([+col, rowIdx]);
+        }
       }
     });
   });

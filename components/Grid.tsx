@@ -5,11 +5,11 @@ export default function Grid({ children }: { children: React.ReactNode }) {
     <svg
       xmlns="http://www.w3.org/2000/svg"
       version="1.1"
-      viewBox="0 0 800 800"
+      viewBox="0 0 1200 1005"
       opacity="0.9"
       display="flex"
-      width="800"
-      height="800"
+      width="1200"
+      height="1005"
     >
       {children}
     </svg>

@@ -21,7 +21,14 @@ export const abi = [
   {
     type: "function",
     name: "newBoard",
-    inputs: [],
+    inputs: [
+      {
+        name: "address",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+    ],
   },
   {
     type: "function",
