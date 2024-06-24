@@ -1,4 +1,4 @@
-import { Button, Frog, TextInput, parseEther } from "frog";
+import { Button, Frog, TextInput, parseEther, FrameContext } from "frog";
 import { devtools } from "frog/dev";
 import { serveStatic } from "frog/serve-static";
 // import { neynar } from 'frog/hubs'
@@ -9,13 +9,34 @@ import { arbitrum } from "viem/chains";
 import { Board } from "../components/Game";
 import Grid from "../components/Grid";
 import Card from "../components/Card";
+
 import { v4 as uuidv4 } from "uuid";
+import { SyndicateClient } from "@syndicateio/syndicate-node";
 import { advanceGrid } from "../indexer/indexer";
 import { neynar } from "frog/hubs";
+import { NeynarAPIClient, FeedType, FilterType } from "@neynar/nodejs-sdk";
 // Uncomment to use Edge Runtime.
 // export const config = {
 //   runtime: 'edge',
 // }
+
+// const neynar = new NeynarAPIClient(process.env.NEYNAR_API_KEY);
+const syndicate = new SyndicateClient({
+  token: () => {
+    const apiKey = process.env.SYNDICATE_API_KEY;
+    if (typeof apiKey === "undefined") {
+      // If you receive this error, you need to define the SYNDICATE_API_KEY in
+      // your Vercel environment variables. You can find the API key in your
+      // Syndicate project settings under the "API Keys" tab.
+      throw new Error(
+        "SYNDICATE_API_KEY is not defined in environment variables.",
+      );
+    }
+    return apiKey;
+  },
+});
+
+const contract = process.env["CONTRACT_ADDRESS"] as `0x${string}`;
 
 export const app = new Frog({
   // initialState: {
@@ -26,6 +47,7 @@ export const app = new Frog({
   // browserLocation: "https://froggyframegol-nutsrices-projects.vercel.app/",
   // origin: "https://froggyframegol-nutsrices-projects.vercel.app/",
   hub: neynar({ apiKey: process.env.NEYNAR_API_KEY || "NEYNAR_FROG_FM" }),
+  verify: "silent",
   // Supply a Hub to enable frame verification.
   // hub: neynar({ apiKey: 'NEYNAR_FROG_FM' })
 });
@@ -33,13 +55,25 @@ const HOST =
   process.env["HOST"] ||
   "https://froggyframegol-nutsrices-projects.vercel.app/";
 
-app.frame("/", async (c) => {
+app.frame("/", async (c: FrameContext) => {
+  const env = c.env as any;
+  console.log(env);
+  let nullBoard = {
+    boardId: uuidv4() as string,
+    grid: {},
+    generation: 0,
+    lastEvolvedUser: "",
+    lastEvolvedAt: 0,
+    isExtinct: false,
+    users: [],
+    userGenerations: {},
+    spawned_at: 0,
+  };
+  const target_url = ("/new_board_tx/" + nullBoard.boardId) as string;
   return c.res({
     image: "/init_img",
     intents: [
-      <Button action="/init" value="init">
-        Start GoL
-      </Button>,
+      <Button.Transaction target={target_url}>Start GoL</Button.Transaction>,
     ],
   });
 });
@@ -48,8 +82,21 @@ app.image("/init_img", (c) => {
   return c.res({
     image: (
       <>
-        <Card>
+        <div
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            height: "100%",
+            backgroundColor: "#917289",
+
+            fontSize: 24,
+          }}
+        >
           <Grid>
+            <div style={{ display: "flex", marginTop: 8 }}> GoL </div>
             <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
               {new Array(20).fill(null).map((_, i) => {
                 return (
@@ -71,7 +118,7 @@ app.image("/init_img", (c) => {
               })}
             </g>
           </Grid>
-        </Card>
+        </div>
       </>
     ),
   });
@@ -91,25 +138,28 @@ app.frame("/init", async (c) => {
   };
 
   await redis.hset(`board:${nullBoard.boardId}`, nullBoard);
+  const target_url = ("/new_board_tx/" + nullBoard.boardId) as string;
   return c.res({
     image: `/board_img/${nullBoard.boardId}`,
     intents: [
-      <Button.Transaction target="/new_board_tx">
+      <Button.Transaction target={target_url}>
         Create new board
       </Button.Transaction>,
-      <Button.Transaction target="/evolve_tx">
-        Evolve this board
-      </Button.Transaction>,
+      // <Button.Transaction target="/evolve_tx">
+      //   Evolve this board
+      // </Button.Transaction>,
     ],
   });
 });
 app.frame("/board/:boardId", async (c) => {
   const boardId = c.req.param("boardId");
+  const target_url = ("/evolve_tx/" + boardId) as string;
+  console.log("evolve url: " + target_url);
   return c.res({
     action: `/evolve_tx/${boardId}`,
     image: `/board_img/${boardId}`,
     intents: [
-      <Button.Transaction target="evolve_tx">
+      <Button.Transaction target={target_url}>
         Evolve this board
       </Button.Transaction>,
     ],
@@ -118,6 +168,7 @@ app.frame("/board/:boardId", async (c) => {
 
 app.image("board_img/:boardId", async (c) => {
   const boardId = c.req.param("boardId");
+  console.log("board: " + boardId + " loaded");
   const board: Board | null = await redis.hgetall(`board:${boardId}`);
   const grid = board?.grid;
   if (!board) {
@@ -161,7 +212,19 @@ app.image("board_img/:boardId", async (c) => {
       "Cache-Control": "max-age=0",
     },
     image: (
-      <Card>
+      <div
+        style={{
+          justifyContent: "center",
+          alignItems: "center",
+          display: "flex",
+          flexDirection: "column",
+          width: "100%",
+          height: "100%",
+          backgroundColor: "#917289",
+
+          fontSize: 24,
+        }}
+      >
         <p fontSize="15"> Board {board.boardId} loaded </p>
         <p fontSize="15"> Generation #{board.generation} </p>
         <Grid>
@@ -186,54 +249,67 @@ app.image("board_img/:boardId", async (c) => {
             })}
           </g>
         </Grid>
-      </Card>
+      </div>
     ),
   });
 });
 
-app.transaction("/new_board_tx", (c) => {
+app.transaction("/new_board_tx/:boardId", (c) => {
+  const { req } = c;
+  const boardId = req.param("boardId");
   const { address } = c;
-  return c.contract({
+
+  let tx = c.contract({
     abi,
     chainId: `eip155:${arbitrum.id}`,
     functionName: "newBoard",
-    args: [address],
-    to: process.env["CONTRACT_ADDRESS"] as `0x${string}`,
+    args: [address, parseEther("0.00028"), boardId],
+    to: contract,
     value: parseEther("0.00028"),
     attribution: true,
   });
+  console.log(tx);
+  return tx;
 });
 
-app.transaction("/evolve_tx", (c) => {
-  const boardId = c.req.param("boardId");
+app.transaction("/evolve_tx/:boardId", async (c) => {
+  const { req } = c;
   const { address } = c;
-  return c.contract({
+  const boardId = req.param("boardId");
+  console.log("evolving boardid:" + boardId);
+  console.log("evolving address:" + address);
+  let tx = c.contract({
     abi,
     chainId: `eip155:${arbitrum.id}`,
     functionName: "evolve",
-    args: [boardId, address as `0x${string}`],
-    to: process.env["CONTRACT_ADDRESS"] as `0x${string}`,
+    args: [boardId, address],
+    to: contract,
     value: parseEther("0.00028"),
     attribution: true,
   });
+  console.log(tx);
+  return tx;
 });
 
 app.frame("/finish_evolve", async (c) => {
-  const boardId = c.req.param("boardId");
+  const { req } = c;
+
+  const boardId = req.param("boardId");
+  console.log("finish evolve boardid:" + boardId);
   //TODO clean this up after debug
   const board: Board | null = await redis.hgetall(`board:${boardId}`);
   const grid = board?.grid;
-  // advanceGrid(grid)
-  const debugGrid = [];
-  for (let i = 0; i < 40; i++) {
-    for (let k = 0; k < 40; k++) {
-      if (grid[i][k] === true) {
-        debugGrid.push("1");
-      } else {
-        debugGrid.push("0");
-      }
-    }
-  }
+  advanceGrid(grid);
+  // const debugGrid = [];
+  // for (let i = 0; i < 40; i++) {
+  //   for (let k = 0; k < 40; k++) {
+  //     if (grid[i][k] === true) {
+  //       debugGrid.push("1");
+  //     } else {
+  //       debugGrid.push("0");
+  //     }
+  //   }
+  // }
 
   return c.res({
     image: `finish_evolve_img/${boardId}`,
@@ -244,7 +320,7 @@ app.frame("/finish_evolve", async (c) => {
 app.image("finish_evolve_img/:boardId", async (c) => {
   const boardId = c.req.param("boardId");
   const board: Board | null = await redis.hgetall(`board:${boardId}`);
-
+  const grid = board?.grid;
   if (!board) {
     return c.res({
       image: (
@@ -281,7 +357,6 @@ app.image("finish_evolve_img/:boardId", async (c) => {
       ),
     });
   }
-  const grid = board?.grid;
   // advanceGrid(grid)
 
   return c.res({

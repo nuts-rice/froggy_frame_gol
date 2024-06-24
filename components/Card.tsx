@@ -12,7 +12,7 @@ export default function Card({ children }: { children: React.ReactNode }) {
         borderRadius: 5,
         marginBottom: 10,
         backgroundColor: "#917289",
-        fontSize: 32,
+        fontSize: 24,
         fontWeight: 600,
       }}
     >

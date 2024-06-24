@@ -1,6 +1,4 @@
-import type { PropsWithChildren } from "react";
-
-export default function Grid({ children }: { children: React.ReactNode }) {
+export default function Grid() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -10,8 +8,6 @@ export default function Grid({ children }: { children: React.ReactNode }) {
       display="flex"
       width="1200"
       height="1005"
-    >
-      {children}
-    </svg>
+    ></svg>
   );
 }

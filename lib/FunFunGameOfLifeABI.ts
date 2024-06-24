@@ -3,7 +3,7 @@ export const abi = [
   {
     type: "function",
     name: "getBoard",
-    inputs: [{ name: "board_id", type: "uint256", internalType: "uint256" }],
+    inputs: [{ name: "board_id", type: "string", internalType: "string" }],
     outputs: [
       {
         name: "Board",
@@ -28,12 +28,24 @@ export const abi = [
         indexed: true,
         internalType: "address",
       },
+      {
+        name: "price",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "board_id",
+        type: "string",
+        indexed: true,
+        internalType: "string",
+      },
     ],
   },
   {
     type: "function",
     name: "get_current_gen",
-    inputs: [{ name: "board_id", type: "uint256", internalType: "uint256" }],
+    inputs: [{ name: "board_id", type: "string", internalType: "string" }],
     outputs: [{ name: "generation", type: "uint256", internalType: "uint256" }],
     stateMutability: "view",
   },
@@ -42,7 +54,7 @@ export const abi = [
     type: "function",
     name: "evolve",
     inputs: [
-      { name: "board_id", type: "uint256", internalType: "uint256" },
+      { name: "board_id", type: "string", internalType: "string" },
       {
         name: "adddress",
         type: "address",
@@ -82,9 +94,9 @@ export const abi = [
           { name: "generation", type: "uint256", internalType: "uint256" },
           {
             name: "board_id",
-            type: "uint256",
+            type: "string",
             indexed: false,
-            internalType: "uint256",
+            internalType: "string",
           },
         ],
       },
@@ -109,9 +121,9 @@ export const abi = [
       },
       {
         name: "board_id",
-        type: "uint256",
+        type: "string",
         indexed: false,
-        internalType: "uint256",
+        internalType: "string",
       },
     ],
     anonymous: false,
