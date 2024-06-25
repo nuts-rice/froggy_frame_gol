@@ -9,12 +9,13 @@ import { arbitrum } from "viem/chains";
 import { Board } from "../components/Game";
 import Grid from "../components/Grid";
 import Card from "../components/Card";
-
+import neynarClient from "../lib/neynar";
 import { v4 as uuidv4 } from "uuid";
 import { SyndicateClient } from "@syndicateio/syndicate-node";
-import { advanceGrid } from "../indexer/indexer";
+import { advanceGrid, initGrid } from "../indexer/indexer";
 import { neynar } from "frog/hubs";
 import { NeynarAPIClient, FeedType, FilterType } from "@neynar/nodejs-sdk";
+import { config } from "dotenv";
 // Uncomment to use Edge Runtime.
 // export const config = {
 //   runtime: 'edge',
@@ -37,7 +38,6 @@ const syndicate = new SyndicateClient({
 });
 
 const contract = process.env["CONTRACT_ADDRESS"] as `0x${string}`;
-
 export const app = new Frog({
   // initialState: {
   //   board: ,
@@ -46,30 +46,21 @@ export const app = new Frog({
   basePath: "/api",
   // browserLocation: "https://froggyframegol-nutsrices-projects.vercel.app/",
   // origin: "https://froggyframegol-nutsrices-projects.vercel.app/",
-  hub: neynar({ apiKey: process.env.NEYNAR_API_KEY || "NEYNAR_FROG_FM" }),
+  hub: neynar({ apiKey: process.env["NEYNAR_API_KEY"] }),
   verify: "silent",
   // Supply a Hub to enable frame verification.
   // hub: neynar({ apiKey: 'NEYNAR_FROG_FM' })
 });
+
 const HOST =
   process.env["HOST"] ||
   "https://froggyframegol-nutsrices-projects.vercel.app/";
 
-app.frame("/", async (c: FrameContext) => {
+app.frame("/", async (c) => {
   const env = c.env as any;
-  console.log(env);
-  let nullBoard = {
-    boardId: uuidv4() as string,
-    grid: {},
-    generation: 0,
-    lastEvolvedUser: "",
-    lastEvolvedAt: 0,
-    isExtinct: false,
-    users: [],
-    userGenerations: {},
-    spawned_at: 0,
-  };
-  const target_url = ("/new_board_tx/" + nullBoard.boardId) as string;
+  console.log("env: " + env);
+  const boardId = uuidv4() as string;
+  const target_url = ("/new_board_tx/" + boardId) as string;
   return c.res({
     image: "/init_img",
     intents: [
@@ -125,11 +116,14 @@ app.image("/init_img", (c) => {
 });
 
 app.frame("/init", async (c) => {
+  const address = c;
+  const user = await neynarClient.lookupUserByVerification(address);
+  console.log("init user:" + user);
   let nullBoard = {
     boardId: uuidv4() as string,
     grid: {},
     generation: 0,
-    lastEvolvedUser: "",
+    lastEvolvedUser: user,
     lastEvolvedAt: 0,
     isExtinct: false,
     users: [],
@@ -166,7 +160,7 @@ app.frame("/board/:boardId", async (c) => {
   });
 });
 
-app.image("board_img/:boardId", async (c) => {
+app.image("/board_img/:boardId", async (c) => {
   const boardId = c.req.param("boardId");
   console.log("board: " + boardId + " loaded");
   const board: Board | null = await redis.hgetall(`board:${boardId}`);
@@ -212,19 +206,7 @@ app.image("board_img/:boardId", async (c) => {
       "Cache-Control": "max-age=0",
     },
     image: (
-      <div
-        style={{
-          justifyContent: "center",
-          alignItems: "center",
-          display: "flex",
-          flexDirection: "column",
-          width: "100%",
-          height: "100%",
-          backgroundColor: "#917289",
-
-          fontSize: 24,
-        }}
-      >
+      <Card>
         <p fontSize="15"> Board {board.boardId} loaded </p>
         <p fontSize="15"> Generation #{board.generation} </p>
         <Grid>
@@ -249,17 +231,34 @@ app.image("board_img/:boardId", async (c) => {
             })}
           </g>
         </Grid>
-      </div>
+      </Card>
     ),
   });
 });
 
-app.transaction("/new_board_tx/:boardId", (c) => {
+app.transaction("/new_board_tx/:boardId", async (c) => {
   const { req } = c;
   const boardId = req.param("boardId");
   const { address } = c;
-
-  let tx = c.contract({
+  const user = await neynarClient.lookupUserByVerification(address);
+  console.log("new boardid:" + boardId);
+  console.log("address:" + address);
+  console.log("user:" + user);
+  await redis.hset(`board:${boardId}`, {
+    boardId,
+    grid: {},
+    generation: 0,
+    lastEvolvedUser: user?.result.user,
+    lastEvolvedAt: Date.now(),
+    isExtinct: false,
+    users: [address],
+    userGenerations: {},
+    spawned_at: Date.now(),
+  });
+  const board: Board | null = await redis.hgetall(`board:${boardId}`);
+  initGrid(board?.grid || {});
+  console.log("new board:" + board);
+  return c.contract({
     abi,
     chainId: `eip155:${arbitrum.id}`,
     functionName: "newBoard",
@@ -268,8 +267,6 @@ app.transaction("/new_board_tx/:boardId", (c) => {
     value: parseEther("0.00028"),
     attribution: true,
   });
-  console.log(tx);
-  return tx;
 });
 
 app.transaction("/evolve_tx/:boardId", async (c) => {
@@ -278,7 +275,7 @@ app.transaction("/evolve_tx/:boardId", async (c) => {
   const boardId = req.param("boardId");
   console.log("evolving boardid:" + boardId);
   console.log("evolving address:" + address);
-  let tx = c.contract({
+  return c.contract({
     abi,
     chainId: `eip155:${arbitrum.id}`,
     functionName: "evolve",
@@ -287,8 +284,6 @@ app.transaction("/evolve_tx/:boardId", async (c) => {
     value: parseEther("0.00028"),
     attribution: true,
   });
-  console.log(tx);
-  return tx;
 });
 
 app.frame("/finish_evolve", async (c) => {

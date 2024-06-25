@@ -1,5 +1,10 @@
 import { NeynarAPIClient } from "@neynar/nodejs-sdk";
-import { NEYNAR_API_KEY } from "@/app/config";
-const neynar = new NeynarAPIClient(NEYNAR_API_KEY);
+import { config } from "dotenv";
+config();
+if (!process.env.NEYNAR_API_KEY) {
+  throw new Error("Make sure you set NEYNAR_API_KEY in your .env file");
+}
 
-export default neynar;
+const neynarClient = new NeynarAPIClient(process.env["NEYNAR_API_KEY"]);
+
+export default neynarClient;

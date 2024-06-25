@@ -8,20 +8,17 @@ import {
   useTransition,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import clsx from "clsx";
 import { v4 as uuidv4 } from "uuid";
-import asTable from "as-table";
 import { saveBoard, evolveBoard } from "@/app/api/action";
-import Grid from "@/app/components/Grid";
-import Cell from "@/app/components/Cell";
-import { CellGrid } from "@/app/indexer/indexer";
-import { HEIGHT, WIDTH } from "@/app/indexer/indexer";
+import Grid from "./Grid";
+import Cell from "./Cell";
+import { HEIGHT, WIDTH } from "../indexer/indexer";
 import {
   advanceGrid,
   getCells,
   getLiveNeighbors,
   getCellIdx,
-} from "@/app/indexer/indexer";
+} from "../indexer/indexer";
 export const height = 40;
 export const width = 40;
 export const MAX_BOARD_GENERATIONS = 150;
@@ -29,6 +26,8 @@ type Position = {
   x: number;
   y: number;
 };
+
+export type CellGrid = Record<string, boolean[]>;
 
 export type Cell = {
   position: Position;

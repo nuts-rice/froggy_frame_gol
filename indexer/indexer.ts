@@ -1,5 +1,6 @@
-export const HEIGHT = 10;
-export const WIDTH = 10;
+import CellGrid from "../components/Game";
+export const HEIGHT = 40;
+export const WIDTH = 40;
 
 export type CellGrid = Record<string, boolean[]>;
 
@@ -49,6 +50,16 @@ export const getCellIdx = (grid: CellGrid, x: number, y: number): number => {
   return x * Object.keys(grid).length + y + 1;
 };
 
+export const initGrid = (): CellGrid => {
+  let grid: CellGrid = {};
+  for (let i = 0; i < HEIGHT; i++) {
+    for (let j = 0; j < WIDTH; j++) {
+      grid[i]![j] = false;
+    }
+  }
+  return grid;
+};
+
 export const advanceGrid = (grid: CellGrid): CellGrid => {
   let ToDie: any[] = [];
   let ToLive: any[] = [];
@@ -60,9 +71,9 @@ export const advanceGrid = (grid: CellGrid): CellGrid => {
           getLiveNeighbors(grid, +col, rowIdx) < 2 ||
           getLiveNeighbors(grid, +col, rowIdx) > 3
         ) {
-          ToDie.push([+col, rowIdx]);
+          grid[col]![rowIdx] = false;
         } else {
-          ToLive.push([+col, rowIdx]);
+          grid[col]![rowIdx] = true;
         }
       }
     });

@@ -1,4 +1,4 @@
-export default function Grid() {
+export default function Grid({ children }: { children: React.ReactNode }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -8,6 +8,8 @@ export default function Grid() {
       display="flex"
       width="1200"
       height="1005"
-    ></svg>
+    >
+      {children}
+    </svg>
   );
 }
