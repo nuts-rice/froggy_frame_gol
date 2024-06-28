@@ -19,31 +19,58 @@ export const getLiveNeighbors = (
   y: number,
 ): number => {
   let count = 0;
-  if (grid[x]![y - 1]) {
-    count++;
-  }
-  if (grid[x]![y + 1]) {
-    count++;
-  }
-  if (grid[x + 1]![y]) {
-    count++;
-  }
-  if (grid[x + 1]![y - 1]) {
-    count++;
-  }
-  if (grid[x + 1]![y + 1]) {
-    count++;
-  }
-  if (grid[+x + 1]![y]) {
-    count++;
-  }
-  if (grid[+x - 1]![y - 1]) {
-    count++;
-  }
-  if (grid[+x - 1]![y + 1]) {
-    count++;
-  }
+  const ops = [
+    [-1, -1],
+    [-1, 0],
+    [-1, 1],
+    [0, -1],
+    [0, 1],
+    [1, -1],
+    [1, 0],
+    [1, 1],
+  ];
+
+  ops.forEach(([dx, dy]) => {
+    const newX = x + dx;
+    const newY = y + dy;
+    if (
+      newX >= 0 &&
+      newX < HEIGHT &&
+      newY >= 0 &&
+      newY < WIDTH &&
+      grid[newX]?.[newY]
+    ) {
+      count++;
+    }
+  });
+
   return count;
+
+  // if (grid[x]![y - 1]) {
+  //   count++;
+  // }
+  // if (grid[x]![y + 1]) {
+  //   count++;
+  // }
+  // if (grid[x + 1]![y]) {
+  //   count++;
+  // }
+  // if (grid[x + 1]![y - 1]) {
+  //   count++;
+  // }
+  // if (grid[x + 1]![y + 1]) {
+  //   count++;
+  // }
+  // if (grid[+x + 1]![y]) {
+  //   count++;
+  // }
+  // if (grid[+x - 1]![y - 1]) {
+  //   count++;
+  // }
+  // if (grid[+x - 1]![y + 1]) {
+  //   count++;
+  // }
+  // return count;
 };
 
 export const getCellIdx = (grid: CellGrid, x: number, y: number): number => {
@@ -61,22 +88,19 @@ export const initGrid = (): CellGrid => {
 };
 
 export const advanceGrid = (grid: CellGrid): CellGrid => {
-  let ToDie: any[] = [];
-  let ToLive: any[] = [];
-  let newCellGrid: CellGrid = Object.assign({}, grid);
-  Object.keys(newCellGrid).forEach((col) => {
-    newCellGrid[col]!.forEach((cell: any, rowIdx: any) => {
-      if (cell) {
-        if (
-          getLiveNeighbors(grid, +col, rowIdx) < 2 ||
-          getLiveNeighbors(grid, +col, rowIdx) > 3
-        ) {
-          grid[col]![rowIdx] = false;
-        } else {
-          grid[col]![rowIdx] = true;
-        }
+  let newGrid: CellGrid = {};
+  for (let i = 0; i < HEIGHT; i++) {
+    newGrid[i] = new Array(WIDTH).fill(false);
+  }
+  for (let x = 0; x < HEIGHT; x++) {
+    for (let y = 0; y < WIDTH; y++) {
+      const liveNeighbors = getLiveNeighbors(grid, x, y);
+      if (grid[x][y]) {
+        newGrid[x][y] = liveNeighbors === 2 || liveNeighbors === 3;
+      } else {
+        newGrid[x][y] = liveNeighbors === 3;
       }
-    });
-  });
-  return newCellGrid;
+    }
+  }
+  return newGrid;
 };

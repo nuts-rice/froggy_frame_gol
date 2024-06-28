@@ -1,4 +1,5 @@
 import { Button, Frog, TextInput, parseEther, FrameContext } from "frog";
+import { createSystem } from "frog/ui";
 import { devtools } from "frog/dev";
 import { serveStatic } from "frog/serve-static";
 // import { neynar } from 'frog/hubs'
@@ -14,8 +15,10 @@ import { v4 as uuidv4 } from "uuid";
 import { SyndicateClient } from "@syndicateio/syndicate-node";
 import { advanceGrid, initGrid } from "../indexer/indexer";
 import { neynar } from "frog/hubs";
+import { arbiUrl } from "../constants";
 import { NeynarAPIClient, FeedType, FilterType } from "@neynar/nodejs-sdk";
 import { config } from "dotenv";
+import { app as images } from "./images";
 // Uncomment to use Edge Runtime.
 // export const config = {
 //   runtime: 'edge',
@@ -56,11 +59,14 @@ const HOST =
   process.env["HOST"] ||
   "https://froggyframegol-nutsrices-projects.vercel.app/";
 
+// app.route("/images", images);
+
 app.frame("/", async (c) => {
   const env = c.env as any;
   console.log("env: " + env);
   const boardId = uuidv4() as string;
   const target_url = ("/new_board_tx/" + boardId) as string;
+  console.log("new board target_url: " + target_url);
   return c.res({
     image: "/init_img",
     intents: [
@@ -73,19 +79,7 @@ app.image("/init_img", (c) => {
   return c.res({
     image: (
       <>
-        <div
-          style={{
-            justifyContent: "center",
-            alignItems: "center",
-            display: "flex",
-            flexDirection: "column",
-            width: "100%",
-            height: "100%",
-            backgroundColor: "#917289",
-
-            fontSize: 24,
-          }}
-        >
+        <Card>
           <Grid>
             <div style={{ display: "flex", marginTop: 8 }}> GoL </div>
             <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
@@ -109,32 +103,18 @@ app.image("/init_img", (c) => {
               })}
             </g>
           </Grid>
-        </div>
+        </Card>
       </>
     ),
   });
 });
-
+//TODO: move board mutations to after tx
 app.frame("/init", async (c) => {
-  const address = c;
-  const user = await neynarClient.lookupUserByVerification(address);
-  console.log("init user:" + user);
-  let nullBoard = {
-    boardId: uuidv4() as string,
-    grid: {},
-    generation: 0,
-    lastEvolvedUser: user,
-    lastEvolvedAt: 0,
-    isExtinct: false,
-    users: [],
-    userGenerations: {},
-    spawned_at: 0,
-  };
-
-  await redis.hset(`board:${nullBoard.boardId}`, nullBoard);
-  const target_url = ("/new_board_tx/" + nullBoard.boardId) as string;
+  const canidate_boardId = uuidv4() as string;
+  const target_url = ("/new_board_tx/" + canidate_boardId) as string;
   return c.res({
-    image: `/board_img/${nullBoard.boardId}`,
+    action: `/finish_new_board/${canidate_boardId}`,
+    image: `/board_img/${canidate_boardId}`,
     intents: [
       <Button.Transaction target={target_url}>
         Create new board
@@ -147,16 +127,78 @@ app.frame("/init", async (c) => {
 });
 app.frame("/board/:boardId", async (c) => {
   const boardId = c.req.param("boardId");
-  const target_url = ("/evolve_tx/" + boardId) as string;
-  console.log("evolve url: " + target_url);
+  const tx_target_url = ("/evolve_tx/" + boardId) as string;
+  const debug_target_url = ("/debug_evolve/" + boardId) as string;
+  console.log("evolve tx url: " + tx_target_url);
   return c.res({
-    action: `/evolve_tx/${boardId}`,
+    action: `/finish_evolve/${boardId}`,
     image: `/board_img/${boardId}`,
     intents: [
-      <Button.Transaction target={target_url}>
+      <Button.Transaction target={tx_target_url}>
         Evolve this board
       </Button.Transaction>,
+      <Button action={debug_target_url}> Debug evolve </Button>,
     ],
+  });
+});
+
+app.frame("/debug_evolve/:boardId", async (c) => {
+  const { req } = c;
+  const boardId = req.param("boardId");
+  //TODO clean this up after debug
+  const board: Board | null = await redis.hgetall(`board:${boardId}`);
+  if (!board) {
+    return c.res({
+      image: (
+        <div
+          style={{
+            alignItems: "center",
+            background: "black",
+            backgroundSize: "100% 100%",
+            display: "flex",
+            flexDirection: "column",
+            flexWrap: "nowrap",
+            height: "100%",
+            justifyContent: "center",
+            textAlign: "center",
+            width: "100%",
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: 20,
+              fontStyle: "normal",
+              letterSpacing: "-0.025em",
+              lineHeight: 1.4,
+              marginTop: 15,
+              padding: "0 120px",
+              display: "flex",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <h1> Board not found </h1>
+          </div>
+        </div>
+      ),
+    });
+  } else {
+    console.log("evolving boardid:" + boardId);
+    await redis.hincrby(`board:${boardId}`, "generations", 1);
+    console.log(
+      "board generation incremented : generation #",
+      +board.generation,
+    );
+    // await redis.zincrby('userGenerations', 1, board.userGenerations[username]);
+
+    const grid = board?.grid;
+    advanceGrid(grid);
+  }
+
+  return c.res({
+    image: `/finish_debug_evolve_img/${boardId}`,
+
+    intents: [<Button value="New Board">New Board</Button>],
   });
 });
 
@@ -164,7 +206,6 @@ app.image("/board_img/:boardId", async (c) => {
   const boardId = c.req.param("boardId");
   console.log("board: " + boardId + " loaded");
   const board: Board | null = await redis.hgetall(`board:${boardId}`);
-  const grid = board?.grid;
   if (!board) {
     return c.res({
       image: (
@@ -201,6 +242,8 @@ app.image("/board_img/:boardId", async (c) => {
       ),
     });
   }
+  const grid = board.grid;
+
   return c.res({
     headers: {
       "Cache-Control": "max-age=0",
@@ -238,26 +281,10 @@ app.image("/board_img/:boardId", async (c) => {
 
 app.transaction("/new_board_tx/:boardId", async (c) => {
   const { req } = c;
-  const boardId = req.param("boardId");
   const { address } = c;
-  const user = await neynarClient.lookupUserByVerification(address);
-  console.log("new boardid:" + boardId);
-  console.log("address:" + address);
-  console.log("user:" + user);
-  await redis.hset(`board:${boardId}`, {
-    boardId,
-    grid: {},
-    generation: 0,
-    lastEvolvedUser: user?.result.user,
-    lastEvolvedAt: Date.now(),
-    isExtinct: false,
-    users: [address],
-    userGenerations: {},
-    spawned_at: Date.now(),
-  });
-  const board: Board | null = await redis.hgetall(`board:${boardId}`);
-  initGrid(board?.grid || {});
-  console.log("new board:" + board);
+  const boardId = req.param("boardId");
+  console.log("new board tx id:" + boardId);
+  console.log("new board tx address:" + address);
   return c.contract({
     abi,
     chainId: `eip155:${arbitrum.id}`,
@@ -269,12 +296,18 @@ app.transaction("/new_board_tx/:boardId", async (c) => {
   });
 });
 
-app.transaction("/evolve_tx/:boardId", async (c) => {
+app.transaction("/evolve_tx/:boardId/", async (c) => {
   const { req } = c;
   const { address } = c;
   const boardId = req.param("boardId");
   console.log("evolving boardid:" + boardId);
   console.log("evolving address:" + address);
+  // const user = await neynarClient.lookupUserByVerification(address);
+  // const username = user.result.user.username;
+  // await redis.hincrby(`board:${boardId}`, 'generations', 1);
+  // await redis.zincrby('userGenerations', 1, board.userGenerations[username]);
+
+  // await redis.zincrby(`boa`, 1, "evolve");
   return c.contract({
     abi,
     chainId: `eip155:${arbitrum.id}`,
@@ -286,33 +319,123 @@ app.transaction("/evolve_tx/:boardId", async (c) => {
   });
 });
 
-app.frame("/finish_evolve", async (c) => {
-  const { req } = c;
+// app.image("/finish_debug_evolve_img/:boardId", async (c) => {
+// }
 
+// app.frame("/finish_debug_evolve/:boardId", async (c) => {
+
+// }
+
+app.frame("/finish_new_board/:boardId", async (c) => {
+  const { req } = c;
+  const { transactionId } = c;
+  // const user = await neynarClient.lookupUserByVerification(address);
+  // const username = user.result.user.username;
+  const boardId = req.param("boardId");
+  console.log("finish new boardid:" + boardId);
+  //console.log("finish new board address:" + address);
+  console.log("new board user: frog dummy");
+  await redis.hset(`board:${boardId}`, {
+    boardId,
+    grid: initGrid(),
+    generation: 1,
+    lastEvolvedUser: "frog dummy",
+    lastEvolvedAt: Date.now(),
+    isExtinct: false,
+    users: [],
+    userGenerations: {},
+    spawned_at: Date.now(),
+  });
+  const board: Board | null = await redis.hgetall(`board:${boardId}`);
+  if (board) {
+    await redis.expire(`board:${board.boardId}`, 1388389425);
+    await redis.zadd("boards_by_date", {
+      score: Number(board.spawned_at),
+      member: board.boardId,
+    });
+  }
+
+  // if (username) {
+  //     await redis.zincrby('userGenerations', 1, board.userGenerations[username]);
+  //     // await redis.hset('users',  board.users[username]);
+  //   };
+  // }
+  const txUrl = transactionId ? arbiUrl(transactionId) : null;
+  return c.res({
+    image: `/boad_img/${boardId}`,
+    intents: [
+      txUrl ? <Button.Link href={txUrl}> View Tx </Button.Link> : null,
+      <Button value="New Board">New Board</Button>,
+    ],
+  });
+});
+
+app.frame("/finish_evolve/:boardId", async (c) => {
+  const { req } = c;
+  const { transactionId } = c;
+  const txUrl = transactionId;
   const boardId = req.param("boardId");
   console.log("finish evolve boardid:" + boardId);
   //TODO clean this up after debug
   const board: Board | null = await redis.hgetall(`board:${boardId}`);
-  const grid = board?.grid;
-  advanceGrid(grid);
-  // const debugGrid = [];
-  // for (let i = 0; i < 40; i++) {
-  //   for (let k = 0; k < 40; k++) {
-  //     if (grid[i][k] === true) {
-  //       debugGrid.push("1");
-  //     } else {
-  //       debugGrid.push("0");
-  //     }
-  //   }
-  // }
+  if (!board) {
+    return c.res({
+      image: (
+        <div
+          style={{
+            alignItems: "center",
+            background: "black",
+            backgroundSize: "100% 100%",
+            display: "flex",
+            flexDirection: "column",
+            flexWrap: "nowrap",
+            height: "100%",
+            justifyContent: "center",
+            textAlign: "center",
+            width: "100%",
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: 20,
+              fontStyle: "normal",
+              letterSpacing: "-0.025em",
+              lineHeight: 1.4,
+              marginTop: 15,
+              padding: "0 120px",
+              display: "flex",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <h1> Board not found </h1>
+          </div>
+        </div>
+      ),
+    });
+  } else {
+    console.log("evolving boardid:" + boardId);
+    // console.log("evolving address:" + address);
+    // const user = await neynarClient.lookupUserByVerification(address);
+    // const username = user.result.user.username;
+    await redis.hincrby(`board:${boardId}`, "generations", 1);
+    // await redis.zincrby('userGenerations', 1, board.userGenerations[username]);
+
+    const grid = board?.grid;
+    advanceGrid(grid);
+    console.log("advance grid called");
+  }
 
   return c.res({
-    image: `finish_evolve_img/${boardId}`,
+    image: `/finish_evolve_img/${boardId}`,
 
-    intents: [<Button value="New Board">New Board</Button>],
+    intents: [
+      txUrl ? <Button.Link href={txUrl}> View Tx </Button.Link> : null,
+      <Button value="New Board">New Board</Button>,
+    ],
   });
 });
-app.image("finish_evolve_img/:boardId", async (c) => {
+app.image("/finish_evolve_img/:boardId", async (c) => {
   const boardId = c.req.param("boardId");
   const board: Board | null = await redis.hgetall(`board:${boardId}`);
   const grid = board?.grid;
@@ -412,6 +535,158 @@ app.image("finish_evolve_img/:boardId", async (c) => {
     ),
   });
 });
+
+app.frame("/finish_debug_evolve/:boardId", async (c) => {
+  const { req } = c;
+  const { transactionId } = c;
+  const boardId = req.param("boardId");
+  console.log("finish evolve boardid:" + boardId);
+  //TODO clean this up after debug
+  const board: Board | null = await redis.hgetall(`board:${boardId}`);
+  if (!board) {
+    return c.res({
+      image: (
+        <div
+          style={{
+            alignItems: "center",
+            background: "black",
+            backgroundSize: "100% 100%",
+            display: "flex",
+            flexDirection: "column",
+            flexWrap: "nowrap",
+            height: "100%",
+            justifyContent: "center",
+            textAlign: "center",
+            width: "100%",
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: 20,
+              fontStyle: "normal",
+              letterSpacing: "-0.025em",
+              lineHeight: 1.4,
+              marginTop: 15,
+              padding: "0 120px",
+              display: "flex",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <h1> Board not found </h1>
+          </div>
+        </div>
+      ),
+    });
+  } else {
+    console.log("evolving boardid:" + boardId);
+    // console.log("evolving address:" + address);
+    // const user = await neynarClient.lookupUserByVerification(address);
+    // const username = user.result.user.username;
+    await redis.hincrby(`board:${boardId}`, "generation", 1);
+    // await redis.zincrby('userGenerations', 1, board.userGenerations[username]);
+
+    const grid = board?.grid;
+    advanceGrid(grid);
+    console.log("advance grid called");
+  }
+
+  return c.res({
+    image: `/finish_debug_evolve_img/${boardId}`,
+
+    intents: [
+      // txUrl ? <Button.Link href={txUrl}> View Tx </Button.Link> : null,
+      <Button value="New Board">New Board</Button>,
+    ],
+  });
+});
+app.image("/finish_debug_evolve_img/:boardId", async (c) => {
+  const boardId = c.req.param("boardId");
+  const board: Board | null = await redis.hgetall(`board:${boardId}`);
+  const grid = board?.grid;
+  if (!board) {
+    return c.res({
+      image: (
+        <div
+          style={{
+            alignItems: "center",
+            background: "black",
+            backgroundSize: "100% 100%",
+            display: "flex",
+            flexDirection: "column",
+            flexWrap: "nowrap",
+            height: "100%",
+            justifyContent: "center",
+            textAlign: "center",
+            width: "100%",
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: 20,
+              fontStyle: "normal",
+              letterSpacing: "-0.025em",
+              lineHeight: 1.4,
+              marginTop: 15,
+              padding: "0 120px",
+              display: "flex",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <h1> Board not found </h1>
+          </div>
+        </div>
+      ),
+    });
+  }
+  // advanceGrid(grid)
+
+  return c.res({
+    image: (
+      <Card>
+        <h1> Board {board.boardId} loaded </h1>
+        <h1> Generation #{board.generation} </h1>
+        <Grid>
+          <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
+            {new Array(40).fill(null).map((_, i) => {
+              return (
+                <g key={i}>
+                  {new Array(40).fill(null).map((_, j) => {
+                    return (
+                      <rect
+                        key={j}
+                        x={20 * j}
+                        y={20 * i}
+                        width={20}
+                        height={20}
+                        fill={grid[i] && grid[i][j] ? "black" : "white"}
+                      />
+                    );
+                  })}
+                </g>
+              );
+            })}
+          </g>
+        </Grid>
+      </Card>
+    ),
+  });
+});
+
+export const {
+  Box,
+  Columns,
+  Column,
+  Heading,
+  HStack,
+  Rows,
+  Row,
+  Spacer,
+  Text,
+  VStack,
+  vars,
+} = createSystem();
 
 // @ts-ignore
 const isEdgeFunction = typeof EdgeFunction !== "undefined";

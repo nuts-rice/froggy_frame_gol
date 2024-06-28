@@ -6,7 +6,8 @@
     "build": "frog vercel-build",
     "dev": "frog dev",
     "deploy": "vercel",
-    "format": "prettier --log-level warn --write ."
+    "format": "prettier --log-level warn --write .",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@neynar/nodejs-sdk": "^1.33.1",
@@ -21,6 +22,7 @@
     "n": "^9.2.3",
     "node-fetch": "^3.3.2",
     "nvm": "^0.0.4",
+    "patch-package": "^8.0.0",
     "prettier": "^3.3.2",
     "react": "^18.3.1",
     "uuid": "^10.0.0",
