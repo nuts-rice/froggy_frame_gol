@@ -411,13 +411,21 @@ app.frame("/finish_evolve/:boardId", async (c) => {
     console.log("evolving boardid:" + boardId);
     const { displayName } = c.var.interactor || {};
     console.log("evolving username:" + displayName);
-    // const user = await neynarClient.lookupUserByVerification(address);
-    // const username = user.result.user.username;
-    await redis.hincrby(`board:${boardId}`, "generations", 1);
-    // await redis.zincrby('userGenerations', 1, board.userGenerations[username]);
-
+    await redis.hincrby(`board:${boardId}`, "generation", 1);
+    console.log(
+      "board generation incremented : generation #",
+      board.generation,
+    );
+    await redis.zincrby("userGenerations", 1, displayName);
     const grid = board?.grid;
-    advanceGrid(grid);
+    const newGrid = advanceGrid(grid);
+    await redis.hmset(`board:${boardId}`, {
+      grid: newGrid,
+      lastEvolvedUser: displayName,
+      lastEvolvedAt: Date.now(),
+      users: [...board.users, displayName],
+      // userGenerations : {...board.userGenerations, displayName: board.generation + 1}
+    });
     console.log("advance grid called");
   }
 
@@ -474,59 +482,32 @@ app.image("/finish_evolve_img/:boardId", async (c) => {
 
   return c.res({
     image: (
-      <div
-        style={{
-          alignItems: "center",
-          background: "black",
-          backgroundSize: "100% 100%",
-          display: "flex",
-          flexDirection: "column",
-          flexWrap: "nowrap",
-          height: "100%",
-          justifyContent: "center",
-          textAlign: "center",
-          width: "100%",
-        }}
-      >
-        <div
-          style={{
-            color: "white",
-            fontSize: 20,
-            fontStyle: "normal",
-            letterSpacing: "-0.025em",
-            lineHeight: 1.4,
-            marginTop: 15,
-            padding: "0 120px",
-            display: "flex",
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          <h1> Board {board.boardId} loaded </h1>
-          <h1> Generation #{board.generation} </h1>
-          <Grid>
-            <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
-              {new Array(40).fill(null).map((_, i) => {
-                return (
-                  <g key={i}>
-                    {new Array(40).fill(null).map((_, j) => {
-                      return (
-                        <rect
-                          key={j}
-                          x={20 * j}
-                          y={20 * i}
-                          width={20}
-                          height={20}
-                          fill={grid[i] && grid[i][j] ? "black" : "white"}
-                        />
-                      );
-                    })}
-                  </g>
-                );
-              })}
-            </g>
-          </Grid>
-        </div>
-      </div>
+      <Card>
+        <h1> Board {board.boardId} loaded </h1>
+        <h1> Generation #{board.generation} </h1>
+        <Grid>
+          <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
+            {new Array(40).fill(null).map((_, i) => {
+              return (
+                <g key={i}>
+                  {new Array(40).fill(null).map((_, j) => {
+                    return (
+                      <rect
+                        key={j}
+                        x={20 * j}
+                        y={20 * i}
+                        width={20}
+                        height={20}
+                        fill={grid[i] && grid[i][j] ? "black" : "white"}
+                      />
+                    );
+                  })}
+                </g>
+              );
+            })}
+          </g>
+        </Grid>
+      </Card>
     ),
   });
 });
