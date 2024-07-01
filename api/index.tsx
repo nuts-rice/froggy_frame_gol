@@ -2,7 +2,7 @@ import { Button, Frog, TextInput, parseEther, FrameContext } from "frog";
 import { createSystem } from "frog/ui";
 import { devtools } from "frog/dev";
 import { serveStatic } from "frog/serve-static";
-// import { neynar } from 'frog/hubs'
+import { neynar } from "frog/middlewares";
 import { handle } from "frog/vercel";
 import { redis } from "../lib/redis";
 import { abi } from "../lib/FunFunGameOfLifeABI";
@@ -14,10 +14,7 @@ import neynarClient from "../lib/neynar";
 import { v4 as uuidv4 } from "uuid";
 import { SyndicateClient } from "@syndicateio/syndicate-node";
 import { advanceGrid, initGrid } from "../indexer/indexer";
-import { neynar } from "frog/hubs";
 import { arbiUrl } from "../constants";
-import { NeynarAPIClient, FeedType, FilterType } from "@neynar/nodejs-sdk";
-import { config } from "dotenv";
 import { app as images } from "./images";
 // Uncomment to use Edge Runtime.
 // export const config = {
@@ -49,11 +46,11 @@ export const app = new Frog({
   basePath: "/api",
   // browserLocation: "https://froggyframegol-nutsrices-projects.vercel.app/",
   // origin: "https://froggyframegol-nutsrices-projects.vercel.app/",
-  hub: neynar({ apiKey: process.env["NEYNAR_API_KEY"] }),
+  hub: neynarClient.hub(),
   verify: "silent",
   // Supply a Hub to enable frame verification.
   // hub: neynar({ apiKey: 'NEYNAR_FROG_FM' })
-});
+}).use(neynarClient.middleware({ features: ["interactor", "cast"] }));
 
 const HOST =
   process.env["HOST"] ||
@@ -245,9 +242,6 @@ app.image("/board_img/:boardId", async (c) => {
   const grid = board.grid;
 
   return c.res({
-    headers: {
-      "Cache-Control": "max-age=0",
-    },
     image: (
       <Card>
         <p fontSize="15"> Board {board.boardId} loaded </p>
@@ -285,15 +279,17 @@ app.transaction("/new_board_tx/:boardId", async (c) => {
   const boardId = req.param("boardId");
   console.log("new board tx id:" + boardId);
   console.log("new board tx address:" + address);
-  return c.contract({
+  const tx = c.contract({
     abi,
     chainId: `eip155:${arbitrum.id}`,
     functionName: "newBoard",
-    args: [address, parseEther("0.00028"), boardId],
+    args: [address, parseEther("0.00011"), boardId],
     to: contract,
-    value: parseEther("0.00028"),
+    value: parseEther("0.00011"),
     attribution: true,
   });
+  console.log(tx);
+  return tx;
 });
 
 app.transaction("/evolve_tx/:boardId/", async (c) => {
@@ -314,7 +310,7 @@ app.transaction("/evolve_tx/:boardId/", async (c) => {
     functionName: "evolve",
     args: [boardId, address],
     to: contract,
-    value: parseEther("0.00028"),
+    value: parseEther("0.00011"),
     attribution: true,
   });
 });
@@ -329,17 +325,15 @@ app.transaction("/evolve_tx/:boardId/", async (c) => {
 app.frame("/finish_new_board/:boardId", async (c) => {
   const { req } = c;
   const { transactionId } = c;
-  // const user = await neynarClient.lookupUserByVerification(address);
-  // const username = user.result.user.username;
+  const { displayName } = c.var.interactor || {};
   const boardId = req.param("boardId");
   console.log("finish new boardid:" + boardId);
-  //console.log("finish new board address:" + address);
-  console.log("new board user: frog dummy");
+  console.log("new board user: " + displayName);
   await redis.hset(`board:${boardId}`, {
     boardId,
     grid: initGrid(),
     generation: 1,
-    lastEvolvedUser: "frog dummy",
+    lastEvolvedUser: displayName,
     lastEvolvedAt: Date.now(),
     isExtinct: false,
     users: [],
@@ -415,7 +409,8 @@ app.frame("/finish_evolve/:boardId", async (c) => {
     });
   } else {
     console.log("evolving boardid:" + boardId);
-    // console.log("evolving address:" + address);
+    const { displayName } = c.var.interactor || {};
+    console.log("evolving username:" + displayName);
     // const user = await neynarClient.lookupUserByVerification(address);
     // const username = user.result.user.username;
     await redis.hincrby(`board:${boardId}`, "generations", 1);
@@ -580,11 +575,12 @@ app.frame("/finish_debug_evolve/:boardId", async (c) => {
     });
   } else {
     console.log("evolving boardid:" + boardId);
-    // console.log("evolving address:" + address);
+    const { displayName } = c.var.interactor || {};
+    console.log("evolving board user: " + displayName);
     // const user = await neynarClient.lookupUserByVerification(address);
     // const username = user.result.user.username;
     await redis.hincrby(`board:${boardId}`, "generation", 1);
-    // await redis.zincrby('userGenerations', 1, board.userGenerations[username]);
+    // await redis.zincrby('userGenerations', 1, board.userGenerations);
 
     const grid = board?.grid;
     advanceGrid(grid);
