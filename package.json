@@ -31,6 +31,7 @@
     "viem": "^2.15.1"
   },
   "devDependencies": {
+    "@types/uuid": "^10.0.0",
     "tsx": "^4.7.1",
     "typescript": "^5.3.3",
     "vercel": "^34.2.8"

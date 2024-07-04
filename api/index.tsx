@@ -12,30 +12,30 @@ import Grid from "../components/Grid";
 import Card from "../components/Card";
 import neynarClient from "../lib/neynar";
 import { v4 as uuidv4 } from "uuid";
-import { SyndicateClient } from "@syndicateio/syndicate-node";
+// import { SyndicateClient } from "@syndicateio/syndicate-node";
 import { advanceGrid, initGrid } from "../indexer/indexer";
 import { arbiUrl } from "../constants";
-import { app as images } from "./images";
+// import { app as images } from "./images";
 // Uncomment to use Edge Runtime.
 // export const config = {
 //   runtime: 'edge',
 // }
 
 // const neynar = new NeynarAPIClient(process.env.NEYNAR_API_KEY);
-const syndicate = new SyndicateClient({
-  token: () => {
-    const apiKey = process.env.SYNDICATE_API_KEY;
-    if (typeof apiKey === "undefined") {
-      // If you receive this error, you need to define the SYNDICATE_API_KEY in
-      // your Vercel environment variables. You can find the API key in your
-      // Syndicate project settings under the "API Keys" tab.
-      throw new Error(
-        "SYNDICATE_API_KEY is not defined in environment variables.",
-      );
-    }
-    return apiKey;
-  },
-});
+// const syndicate = new SyndicateClient({
+//   token: () => {
+//     const apiKey = process.env.SYNDICATE_API_KEY;
+//     if (typeof apiKey === "undefined") {
+//       // If you receive this error, you need to define the SYNDICATE_API_KEY in
+//       // your Vercel environment variables. You can find the API key in your
+//       // Syndicate project settings under the "API Keys" tab.
+//       throw new Error(
+//         "SYNDICATE_API_KEY is not defined in environment variables.",
+//       );
+//     }
+//     return apiKey;
+//   },
+// });
 
 const contract = process.env["CONTRACT_ADDRESS"] as `0x${string}`;
 export const app = new Frog({
@@ -44,12 +44,9 @@ export const app = new Frog({
   // }
   assetsPath: "/",
   basePath: "/api",
-  // browserLocation: "https://froggyframegol-nutsrices-projects.vercel.app/",
-  // origin: "https://froggyframegol-nutsrices-projects.vercel.app/",
   hub: neynarClient.hub(),
   verify: "silent",
-  // Supply a Hub to enable frame verification.
-  // hub: neynar({ apiKey: 'NEYNAR_FROG_FM' })
+  browserLocation: "/:path",
 }).use(neynarClient.middleware({ features: ["interactor", "cast"] }));
 
 const HOST =
@@ -61,8 +58,8 @@ const HOST =
 app.frame("/", async (c) => {
   const env = c.env as any;
   console.log("env: " + env);
-  const boardId = uuidv4() as string;
-  const target_url = ("/new_board_tx/" + boardId) as string;
+  const boardId = uuidv4();
+  const target_url = `/new_board_tx/${boardId}`;
   console.log("new board target_url: " + target_url);
   return c.res({
     image: "/init_img",
@@ -244,8 +241,13 @@ app.image("/board_img/:boardId", async (c) => {
   return c.res({
     image: (
       <Card>
-        <p fontSize="15"> Board {board.boardId} loaded </p>
-        <p fontSize="15"> Generation #{board.generation} </p>
+        <p style={{ fontSize: 15 }}> Board {board.boardId} loaded </p>
+        <p style={{ fontSize: 15 }}> Generation #{board.generation} </p>
+        <p style={{ fontSize: 15 }}>
+          {" "}
+          Last evolved by: {board.lastEvolvedUser}{" "}
+        </p>
+
         <Grid>
           <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
             {new Array(40).fill(null).map((_, i) => {
@@ -283,9 +285,9 @@ app.transaction("/new_board_tx/:boardId", async (c) => {
     abi,
     chainId: `eip155:${arbitrum.id}`,
     functionName: "newBoard",
-    args: [address, parseEther("0.00011"), boardId],
+    args: [address, parseEther("0.00001"), boardId],
     to: contract,
-    value: parseEther("0.00011"),
+    value: parseEther("0.00001"),
     attribution: true,
   });
   console.log(tx);
@@ -310,7 +312,7 @@ app.transaction("/evolve_tx/:boardId/", async (c) => {
     functionName: "evolve",
     args: [boardId, address],
     to: contract,
-    value: parseEther("0.00011"),
+    value: parseEther("0.00001"),
     attribution: true,
   });
 });
@@ -367,67 +369,27 @@ app.frame("/finish_new_board/:boardId", async (c) => {
 app.frame("/finish_evolve/:boardId", async (c) => {
   const { req } = c;
   const { transactionId } = c;
-  const txUrl = transactionId;
+  const txUrl = transactionId ? arbiUrl(transactionId) : null;
   const boardId = req.param("boardId");
   console.log("finish evolve boardid:" + boardId);
   //TODO clean this up after debug
   const board: Board | null = await redis.hgetall(`board:${boardId}`);
-  if (!board) {
-    return c.res({
-      image: (
-        <div
-          style={{
-            alignItems: "center",
-            background: "black",
-            backgroundSize: "100% 100%",
-            display: "flex",
-            flexDirection: "column",
-            flexWrap: "nowrap",
-            height: "100%",
-            justifyContent: "center",
-            textAlign: "center",
-            width: "100%",
-          }}
-        >
-          <div
-            style={{
-              color: "white",
-              fontSize: 20,
-              fontStyle: "normal",
-              letterSpacing: "-0.025em",
-              lineHeight: 1.4,
-              marginTop: 15,
-              padding: "0 120px",
-              display: "flex",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            <h1> Board not found </h1>
-          </div>
-        </div>
-      ),
-    });
-  } else {
-    console.log("evolving boardid:" + boardId);
-    const { displayName } = c.var.interactor || {};
-    console.log("evolving username:" + displayName);
-    await redis.hincrby(`board:${boardId}`, "generation", 1);
-    console.log(
-      "board generation incremented : generation #",
-      board.generation,
-    );
-    await redis.zincrby("userGenerations", 1, displayName);
-    const grid = board?.grid;
-    const newGrid = advanceGrid(grid);
-    await redis.hmset(`board:${boardId}`, {
-      grid: newGrid,
-      lastEvolvedUser: displayName,
-      lastEvolvedAt: Date.now(),
-      users: [...board.users, displayName],
-      // userGenerations : {...board.userGenerations, displayName: board.generation + 1}
-    });
-    console.log("advance grid called");
-  }
+  console.log("evolving boardid:" + boardId);
+  const { displayName } = c.var.interactor || {};
+  console.log("evolving username:" + displayName);
+  await redis.hincrby(`board:${boardId}`, "generation", 1);
+  console.log("board generation incremented : generation #", board?.generation);
+  await redis.zincrby("userGenerations", 1, displayName);
+  const grid = board?.grid || {};
+  const newGrid = advanceGrid(grid);
+  await redis.hset(`board:${boardId}`, {
+    grid: JSON.stringify(newGrid),
+    lastEvolvedUser: displayName,
+    lastEvolvedAt: Date.now(),
+    users: [...(board?.users || ""), displayName],
+  });
+  console.log("advance grid called");
+  console.log("new grid state saved: " + newGrid);
 
   return c.res({
     image: `/finish_evolve_img/${boardId}`,
@@ -441,7 +403,6 @@ app.frame("/finish_evolve/:boardId", async (c) => {
 app.image("/finish_evolve_img/:boardId", async (c) => {
   const boardId = c.req.param("boardId");
   const board: Board | null = await redis.hgetall(`board:${boardId}`);
-  const grid = board?.grid;
   if (!board) {
     return c.res({
       image: (
@@ -479,12 +440,17 @@ app.image("/finish_evolve_img/:boardId", async (c) => {
     });
   }
   // advanceGrid(grid)
+  const grid = board.grid;
 
   return c.res({
     image: (
       <Card>
-        <h1> Board {board.boardId} loaded </h1>
-        <h1> Generation #{board.generation} </h1>
+        <p style={{ fontSize: 15 }}> Board {board.boardId} loaded </p>
+        <p style={{ fontSize: 15 }}> Generation #{board.generation} </p>
+        <p style={{ fontSize: 15 }}>
+          {" "}
+          Last evolved by: #{board.lastEvolvedUser}{" "}
+        </p>
         <Grid>
           <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
             {new Array(40).fill(null).map((_, i) => {
@@ -558,10 +524,7 @@ app.frame("/finish_debug_evolve/:boardId", async (c) => {
     console.log("evolving boardid:" + boardId);
     const { displayName } = c.var.interactor || {};
     console.log("evolving board user: " + displayName);
-    // const user = await neynarClient.lookupUserByVerification(address);
-    // const username = user.result.user.username;
     await redis.hincrby(`board:${boardId}`, "generation", 1);
-    // await redis.zincrby('userGenerations', 1, board.userGenerations);
 
     const grid = board?.grid;
     advanceGrid(grid);
@@ -580,7 +543,6 @@ app.frame("/finish_debug_evolve/:boardId", async (c) => {
 app.image("/finish_debug_evolve_img/:boardId", async (c) => {
   const boardId = c.req.param("boardId");
   const board: Board | null = await redis.hgetall(`board:${boardId}`);
-  const grid = board?.grid;
   if (!board) {
     return c.res({
       image: (
@@ -637,7 +599,9 @@ app.image("/finish_debug_evolve_img/:boardId", async (c) => {
                         y={20 * i}
                         width={20}
                         height={20}
-                        fill={grid[i] && grid[i][j] ? "black" : "white"}
+                        fill={
+                          board.grid[i] && board.grid[i][j] ? "black" : "white"
+                        }
                       />
                     );
                   })}
@@ -665,9 +629,11 @@ export const {
   vars,
 } = createSystem();
 
-// @ts-ignore
-const isEdgeFunction = typeof EdgeFunction !== "undefined";
-const isProduction = isEdgeFunction || import.meta.env?.MODE !== "development";
+// const isEdgeFunction = typeof EdgeFunction !== "undefined";
+// const isProduction = isEdgeFunction || import.meta.env?.MODE !== "development";
+
 devtools(app, { serveStatic });
+
 export const GET = handle(app);
 export const POST = handle(app);
+export default app;
