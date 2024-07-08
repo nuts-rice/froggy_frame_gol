@@ -63,9 +63,141 @@ app.frame("/", async (c) => {
   console.log("new board target_url: " + target_url);
   return c.res({
     image: "/init_img",
+    action: `/finish_new_board/${boardId}`,
     intents: [
       <Button.Transaction target={target_url}>Start GoL</Button.Transaction>,
     ],
+  });
+});
+
+app.frame("/choose_patterns", async (c) => {
+  const { buttonValue } = c;
+  if (buttonValue === "glider") {
+    const boardId = uuidv4();
+    const target_url = `/new_board_tx/${boardId}`;
+    return c.res({
+      image: "/choose_glider_img",
+      action: `/finish_new_board/${boardId}`,
+      intents: [
+        <Button.Transaction target={target_url}>Submit</Button.Transaction>,
+        <Button action="/choose_patterns">Choose pattern</Button>,
+      ],
+    });
+  }
+  if (buttonValue === "blinker") {
+    const boardId = uuidv4();
+    const target_url = `/new_board_tx/${boardId}`;
+    return c.res({
+      image: "/choose_blinker_img",
+      action: `/finish_new_board/${boardId}`,
+      intents: [
+        <Button.Transaction target={target_url}>Submit</Button.Transaction>,
+        <Button action="/choose_patterns">Choose pattern</Button>,
+      ],
+    });
+  }
+  if (buttonValue === "glider gun") {
+    const boardId = uuidv4();
+    const target_url = `/new_board_tx/${boardId}`;
+    return c.res({
+      image: "/choose_glider_gun_img",
+      action: `/finish_new_board/${boardId}`,
+      intents: [
+        <Button.Transaction target={target_url}>Submit</Button.Transaction>,
+        <Button action="/choose_patterns">Choose pattern</Button>,
+      ],
+    });
+  }
+  if (buttonValue === "random") {
+    const boardId = uuidv4();
+    const target_url = `/new_board_tx/${boardId}`;
+    return c.res({
+      image: "/choose_random_img",
+      action: `/finish_new_board/${boardId}`,
+      intents: [
+        <Button.Transaction target={target_url}>Submit</Button.Transaction>,
+        <Button action="/choose_patterns">Choose pattern</Button>,
+      ],
+    });
+  }
+  return c.res({
+    image: "/choose_patterns_img",
+    intents: [
+      <Button value="glider">Glider</Button>,
+      <Button value="blinker">Blinker</Button>,
+      <Button value="glider gun">Glider Gun</Button>,
+      <Button value="random">Random</Button>,
+    ],
+  });
+});
+
+app.image("/choose_glider_img", (c) => {
+  return c.res({
+    image: (
+      <>
+        <Card>
+          <Grid>
+            <div style={{ display: "flex", marginTop: 8 }}> Glider </div>
+            <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
+              {new Array(20).fill(null).map((_, i) => {
+                return (
+                  <g key={i}>
+                    {new Array(20).fill(null).map((_, j) => {
+                      return (
+                        <rect
+                          key={j}
+                          x={20 * j}
+                          y={20 * i}
+                          width={20}
+                          height={20}
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })}
+            </g>
+          </Grid>
+        </Card>
+      </>
+    ),
+  });
+});
+
+app.image("/choose_patterns_img", (c) => {
+  return c.res({
+    image: (
+      <>
+        <Card>
+          <Grid>
+            <div style={{ display: "flex", marginTop: 8 }}>
+              {" "}
+              Choose a pattern{" "}
+            </div>
+            <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
+              {new Array(20).fill(null).map((_, i) => {
+                return (
+                  <g key={i}>
+                    {new Array(20).fill(null).map((_, j) => {
+                      return (
+                        <rect
+                          key={j}
+                          x={20 * j}
+                          y={20 * i}
+                          width={20}
+                          height={20}
+                          fill={"white"}
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })}
+            </g>
+          </Grid>
+        </Card>
+      </>
+    ),
   });
 });
 
