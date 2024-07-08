@@ -12,41 +12,26 @@ import Grid from "../components/Grid";
 import Card from "../components/Card";
 import neynarClient from "../lib/neynar";
 import { v4 as uuidv4 } from "uuid";
+import { HEIGHT, WIDTH } from "../indexer/indexer";
 // import { SyndicateClient } from "@syndicateio/syndicate-node";
-import { advanceGrid, initGrid } from "../indexer/indexer";
+import { advanceGrid, initGrid, getCells } from "../indexer/indexer";
+import { CellGrid } from "../indexer/indexer";
 import { arbiUrl } from "../constants";
-// import { app as images } from "./images";
-// Uncomment to use Edge Runtime.
-// export const config = {
-//   runtime: 'edge',
-// }
 
-// const neynar = new NeynarAPIClient(process.env.NEYNAR_API_KEY);
-// const syndicate = new SyndicateClient({
-//   token: () => {
-//     const apiKey = process.env.SYNDICATE_API_KEY;
-//     if (typeof apiKey === "undefined") {
-//       // If you receive this error, you need to define the SYNDICATE_API_KEY in
-//       // your Vercel environment variables. You can find the API key in your
-//       // Syndicate project settings under the "API Keys" tab.
-//       throw new Error(
-//         "SYNDICATE_API_KEY is not defined in environment variables.",
-//       );
-//     }
-//     return apiKey;
-//   },
-// });
+type BoardState = {
+  board: CellGrid;
+};
 
 const contract = process.env["CONTRACT_ADDRESS"] as `0x${string}`;
-export const app = new Frog({
-  // initialState: {
-  //   board: ,
-  // }
+export const app = new Frog<{ State: BoardState }>({
   assetsPath: "/",
   basePath: "/api",
   hub: neynarClient.hub(),
   verify: "silent",
   browserLocation: "/:path",
+  initialState: {
+    board: {},
+  },
 }).use(neynarClient.middleware({ features: ["interactor", "cast"] }));
 
 const HOST =
@@ -132,6 +117,20 @@ app.frame("/choose_patterns", async (c) => {
 });
 
 app.image("/choose_glider_img", (c) => {
+  const gliderPattern = [
+    [0, 1],
+    [1, 2],
+    [2, 0],
+    [2, 1],
+    [2, 2],
+  ];
+  const applyPattern = (pattern: number[][]) => {
+    const board = initGrid();
+    pattern.forEach(([x, y]) => {
+      board[x][y] = true;
+    });
+    return board;
+  };
   return c.res({
     image: (
       <>
@@ -175,10 +174,10 @@ app.image("/choose_patterns_img", (c) => {
               Choose a pattern{" "}
             </div>
             <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
-              {new Array(20).fill(null).map((_, i) => {
+              {new Array(40).fill(null).map((_, i) => {
                 return (
                   <g key={i}>
-                    {new Array(20).fill(null).map((_, j) => {
+                    {new Array(40).fill(null).map((_, j) => {
                       return (
                         <rect
                           key={j}
@@ -459,35 +458,34 @@ app.transaction("/evolve_tx/:boardId/", async (c) => {
 app.frame("/finish_new_board/:boardId", async (c) => {
   const { req } = c;
   const { transactionId } = c;
-  const { displayName } = c.var.interactor || {};
   const boardId = req.param("boardId");
   console.log("finish new boardid:" + boardId);
-  console.log("new board user: " + displayName);
+  const board: Board | null = await redis.hgetall(`board:${boardId}`);
+  //TODO: this breaks
   await redis.hset(`board:${boardId}`, {
-    boardId,
-    grid: initGrid(),
+    boardId: boardId,
     generation: 1,
-    lastEvolvedUser: displayName,
     lastEvolvedAt: Date.now(),
     isExtinct: false,
-    users: [],
-    userGenerations: {},
     spawned_at: Date.now(),
   });
-  const board: Board | null = await redis.hgetall(`board:${boardId}`);
   if (board) {
+    console.log("board expiration set");
     await redis.expire(`board:${board.boardId}`, 1388389425);
+    console.log("boards by date zadd called");
     await redis.zadd("boards_by_date", {
       score: Number(board.spawned_at),
       member: board.boardId,
     });
   }
+  const displayName = c.var.interactor?.displayName;
+  console.log("new board user: " + displayName);
+  if (displayName) {
+    await redis.zincrby("userGenerations", 1, displayName);
+    await redis.hset(`board:${boardId}`, "users", [displayName]);
+    await redis.hset(`board:${boardId}`, "lastEvolvedUser", displayName);
+  }
 
-  // if (username) {
-  //     await redis.zincrby('userGenerations', 1, board.userGenerations[username]);
-  //     // await redis.hset('users',  board.users[username]);
-  //   };
-  // }
   const txUrl = transactionId ? arbiUrl(transactionId) : null;
   return c.res({
     image: `/boad_img/${boardId}`,
