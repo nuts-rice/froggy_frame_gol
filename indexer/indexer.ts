@@ -87,6 +87,14 @@ export const initGrid = (): CellGrid => {
   return grid;
 };
 
+export const applyPattern = (grid: CellGrid, pattern: number[][]): CellGrid => {
+  const newGrid = { ...grid };
+  pattern.forEach(([x, y]) => {
+    newGrid[x]![y] = true;
+  });
+  return newGrid;
+};
+
 export const advanceGrid = (grid: CellGrid): CellGrid => {
   let newGrid: CellGrid = {};
   for (let i = 0; i < HEIGHT; i++) {

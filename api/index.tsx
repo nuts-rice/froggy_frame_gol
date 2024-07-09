@@ -4,7 +4,7 @@ import { devtools } from "frog/dev";
 import { serveStatic } from "frog/serve-static";
 import { neynar } from "frog/middlewares";
 import { handle } from "frog/vercel";
-import { redis } from "../lib/redis";
+import redis from "../lib/redis";
 import { abi } from "../lib/FunFunGameOfLifeABI";
 import { arbitrum } from "viem/chains";
 import { Board } from "../components/Game";
@@ -116,89 +116,42 @@ app.frame("/choose_patterns", async (c) => {
   });
 });
 
-app.image("/choose_glider_img", (c) => {
-  const gliderPattern = [
-    [0, 1],
-    [1, 2],
-    [2, 0],
-    [2, 1],
-    [2, 2],
-  ];
-  const applyPattern = (pattern: number[][]) => {
-    const board = initGrid();
-    pattern.forEach(([x, y]) => {
-      board[x][y] = true;
-    });
-    return board;
-  };
-  return c.res({
-    image: (
-      <>
-        <Card>
-          <Grid>
-            <div style={{ display: "flex", marginTop: 8 }}> Glider </div>
-            <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
-              {new Array(20).fill(null).map((_, i) => {
-                return (
-                  <g key={i}>
-                    {new Array(20).fill(null).map((_, j) => {
-                      return (
-                        <rect
-                          key={j}
-                          x={20 * j}
-                          y={20 * i}
-                          width={20}
-                          height={20}
-                        />
-                      );
-                    })}
-                  </g>
-                );
-              })}
-            </g>
-          </Grid>
-        </Card>
-      </>
-    ),
-  });
-});
-
-app.image("/choose_patterns_img", (c) => {
-  return c.res({
-    image: (
-      <>
-        <Card>
-          <Grid>
-            <div style={{ display: "flex", marginTop: 8 }}>
-              {" "}
-              Choose a pattern{" "}
-            </div>
-            <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
-              {new Array(40).fill(null).map((_, i) => {
-                return (
-                  <g key={i}>
-                    {new Array(40).fill(null).map((_, j) => {
-                      return (
-                        <rect
-                          key={j}
-                          x={20 * j}
-                          y={20 * i}
-                          width={20}
-                          height={20}
-                          fill={"white"}
-                        />
-                      );
-                    })}
-                  </g>
-                );
-              })}
-            </g>
-          </Grid>
-        </Card>
-      </>
-    ),
-  });
-});
+// app.image("/choose_patterns_img", (c) => {
+//   return c.res({
+//     image: (
+//       <>
+//         <Card>
+//           <Grid>
+//             <div style={{ display: "flex", marginTop: 8 }}>
+//               {" "}
+//               Choose a pattern{" "}
+//             </div>
+//             <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
+//               {new Array(40).fill(null).map((_, i) => {
+//                 return (
+//                   <g key={i}>
+//                     {new Array(40).fill(null).map((_, j) => {
+//                       return (
+//                         <rect
+//                           key={j}
+//                           x={20 * j}
+//                           y={20 * i}
+//                           width={20}
+//                           height={20}
+//                           fill={"white"}
+//                         />
+//                       );
+//                     })}
+//                   </g>
+//                 );
+//               })}
+//             </g>
+//           </Grid>
+//         </Card>
+//       </>
+//     ),
+//   });
+// });
 
 app.image("/init_img", (c) => {
   return c.res({
@@ -455,10 +408,11 @@ app.transaction("/evolve_tx/:boardId/", async (c) => {
 
 // }
 
-app.frame("/finish_new_board/:boardId", async (c) => {
+app.frame("/finish_new_board/:boardId/:pattern", async (c) => {
   const { req } = c;
   const { transactionId } = c;
   const boardId = req.param("boardId");
+  const pattern = req.param("pattern");
   console.log("finish new boardid:" + boardId);
   const board: Board | null = await redis.hgetall(`board:${boardId}`);
   //TODO: this breaks
@@ -482,8 +436,8 @@ app.frame("/finish_new_board/:boardId", async (c) => {
   console.log("new board user: " + displayName);
   if (displayName) {
     await redis.zincrby("userGenerations", 1, displayName);
-    await redis.hset(`board:${boardId}`, "users", [displayName]);
-    await redis.hset(`board:${boardId}`, "lastEvolvedUser", displayName);
+    // await redis.hset(`board:${boardId}`, "users", [displayName]);
+    // await redis.hset(`board:${boardId}`, "lastEvolvedUser", displayName);
   }
 
   const txUrl = transactionId ? arbiUrl(transactionId) : null;
