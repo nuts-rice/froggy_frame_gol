@@ -2,7 +2,7 @@ import CellGrid from "../components/Game";
 export const HEIGHT = 40;
 export const WIDTH = 40;
 
-export type CellGrid = Record<string, boolean[]>;
+export type CellGrid = boolean[][];
 
 export const getCells = (idx: number): CellGrid => {
   const cells = new Array(idx).fill(false);
@@ -78,28 +78,18 @@ export const getCellIdx = (grid: CellGrid, x: number, y: number): number => {
 };
 
 export const initGrid = (): CellGrid => {
-  let grid: CellGrid = {};
-  for (let i = 0; i < HEIGHT; i++) {
-    for (let j = 0; j < WIDTH; j++) {
-      grid[i]![j] = false;
-    }
-  }
-  return grid;
+  return new Array(HEIGHT).fill(false).map(() => new Array(WIDTH).fill(false));
 };
-
 export const applyPattern = (grid: CellGrid, pattern: number[][]): CellGrid => {
-  const newGrid = { ...grid };
+  const newGrid = grid.map((row) => row.slice());
   pattern.forEach(([x, y]) => {
-    newGrid[x]![y] = true;
+    newGrid[x][y] = true;
   });
   return newGrid;
 };
 
 export const advanceGrid = (grid: CellGrid): CellGrid => {
-  let newGrid: CellGrid = {};
-  for (let i = 0; i < HEIGHT; i++) {
-    newGrid[i] = new Array(WIDTH).fill(false);
-  }
+  const newGrid = initGrid();
   for (let x = 0; x < HEIGHT; x++) {
     for (let y = 0; y < WIDTH; y++) {
       const liveNeighbors = getLiveNeighbors(grid, x, y);

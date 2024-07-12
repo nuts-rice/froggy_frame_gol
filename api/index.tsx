@@ -14,7 +14,12 @@ import neynarClient from "../lib/neynar";
 import { v4 as uuidv4 } from "uuid";
 import { HEIGHT, WIDTH } from "../indexer/indexer";
 // import { SyndicateClient } from "@syndicateio/syndicate-node";
-import { advanceGrid, initGrid, getCells } from "../indexer/indexer";
+import {
+  advanceGrid,
+  initGrid,
+  getCells,
+  applyPattern,
+} from "../indexer/indexer";
 import { CellGrid } from "../indexer/indexer";
 import { arbiUrl } from "../constants";
 
@@ -57,48 +62,19 @@ app.frame("/", async (c) => {
 
 app.frame("/choose_patterns", async (c) => {
   const { buttonValue } = c;
-  if (buttonValue === "glider") {
-    const boardId = uuidv4();
-    const target_url = `/new_board_tx/${boardId}`;
+  const boardId = uuidv4();
+  const target_url = `/new_board_tx/${boardId}`;
+  console.log(`boardId: ${boardId} selected ${buttonValue} pattern`);
+  const actions: Record<string, string> = {
+    glider: "glider",
+    blinker: "blinker",
+    glider_gun: "glider_gun",
+    random: "random",
+  };
+  if (buttonValue in actions) {
     return c.res({
-      image: "/choose_glider_img",
-      action: `/finish_new_board/${boardId}`,
-      intents: [
-        <Button.Transaction target={target_url}>Submit</Button.Transaction>,
-        <Button action="/choose_patterns">Choose pattern</Button>,
-      ],
-    });
-  }
-  if (buttonValue === "blinker") {
-    const boardId = uuidv4();
-    const target_url = `/new_board_tx/${boardId}`;
-    return c.res({
-      image: "/choose_blinker_img",
-      action: `/finish_new_board/${boardId}`,
-      intents: [
-        <Button.Transaction target={target_url}>Submit</Button.Transaction>,
-        <Button action="/choose_patterns">Choose pattern</Button>,
-      ],
-    });
-  }
-  if (buttonValue === "glider gun") {
-    const boardId = uuidv4();
-    const target_url = `/new_board_tx/${boardId}`;
-    return c.res({
-      image: "/choose_glider_gun_img",
-      action: `/finish_new_board/${boardId}`,
-      intents: [
-        <Button.Transaction target={target_url}>Submit</Button.Transaction>,
-        <Button action="/choose_patterns">Choose pattern</Button>,
-      ],
-    });
-  }
-  if (buttonValue === "random") {
-    const boardId = uuidv4();
-    const target_url = `/new_board_tx/${boardId}`;
-    return c.res({
-      image: "/choose_random_img",
-      action: `/finish_new_board/${boardId}`,
+      image: `/choose_patterns_img/${boardId}`,
+      action: `/finish_new_board/${boardId}/${actions[buttonValue]}`,
       intents: [
         <Button.Transaction target={target_url}>Submit</Button.Transaction>,
         <Button action="/choose_patterns">Choose pattern</Button>,
@@ -106,52 +82,90 @@ app.frame("/choose_patterns", async (c) => {
     });
   }
   return c.res({
-    image: "/choose_patterns_img",
+    image: "/choose_patterns_img/:boardId",
     intents: [
       <Button value="glider">Glider</Button>,
       <Button value="blinker">Blinker</Button>,
-      <Button value="glider gun">Glider Gun</Button>,
+      <Button value="glider_gun">Glider Gun</Button>,
       <Button value="random">Random</Button>,
     ],
   });
 });
 
-// app.image("/choose_patterns_img", (c) => {
-//   return c.res({
-//     image: (
-//       <>
-//         <Card>
-//           <Grid>
-//             <div style={{ display: "flex", marginTop: 8 }}>
-//               {" "}
-//               Choose a pattern{" "}
-//             </div>
-//             <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
-//               {new Array(40).fill(null).map((_, i) => {
-//                 return (
-//                   <g key={i}>
-//                     {new Array(40).fill(null).map((_, j) => {
-//                       return (
-//                         <rect
-//                           key={j}
-//                           x={20 * j}
-//                           y={20 * i}
-//                           width={20}
-//                           height={20}
-//                           fill={"white"}
-//                         />
-//                       );
-//                     })}
-//                   </g>
-//                 );
-//               })}
-//             </g>
-//           </Grid>
-//         </Card>
-//       </>
-//     ),
-//   });
-// });
+app.image("/choose_patterns_img/:boardId", (c) => {
+  const boardId = c.req.param("boardId");
+  if (!boardId) {
+    return c.res({
+      image: (
+        <div
+          style={{
+            alignItems: "center",
+            background: "black",
+            backgroundSize: "100% 100%",
+            display: "flex",
+            flexDirection: "column",
+            flexWrap: "nowrap",
+            height: "100%",
+            justifyContent: "center",
+            textAlign: "center",
+            width: "100%",
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: 20,
+              fontStyle: "normal",
+              letterSpacing: "-0.025em",
+              lineHeight: 1.4,
+              marginTop: 15,
+              padding: "0 120px",
+              display: "flex",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <h1> Board not found </h1>
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  return c.res({
+    image: (
+      <>
+        <Card>
+          <Grid>
+            <div style={{ display: "flex", marginTop: 8 }}>
+              {" "}
+              Choose a pattern{" "}
+            </div>
+            <g strokeWidth="1.25" stroke="hsla(0, 0%, 11%, 1.00)" fill="white">
+              {new Array(40).fill(null).map((_, i) => {
+                return (
+                  <g key={i}>
+                    {new Array(40).fill(null).map((_, j) => {
+                      return (
+                        <rect
+                          key={j}
+                          x={20 * j}
+                          y={20 * i}
+                          width={20}
+                          height={20}
+                          fill={"white"}
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })}
+            </g>
+          </Grid>
+        </Card>
+      </>
+    ),
+  });
+});
 
 app.image("/init_img", (c) => {
   return c.res({
@@ -206,7 +220,6 @@ app.frame("/init", async (c) => {
 app.frame("/board/:boardId", async (c) => {
   const boardId = c.req.param("boardId");
   const tx_target_url = ("/evolve_tx/" + boardId) as string;
-  const debug_target_url = ("/debug_evolve/" + boardId) as string;
   console.log("evolve tx url: " + tx_target_url);
   return c.res({
     action: `/finish_evolve/${boardId}`,
@@ -215,7 +228,6 @@ app.frame("/board/:boardId", async (c) => {
       <Button.Transaction target={tx_target_url}>
         Evolve this board
       </Button.Transaction>,
-      <Button action={debug_target_url}> Debug evolve </Button>,
     ],
   });
 });
@@ -414,15 +426,18 @@ app.frame("/finish_new_board/:boardId/:pattern", async (c) => {
   const boardId = req.param("boardId");
   const pattern = req.param("pattern");
   console.log("finish new boardid:" + boardId);
-  const board: Board | null = await redis.hgetall(`board:${boardId}`);
   //TODO: this breaks
   await redis.hset(`board:${boardId}`, {
     boardId: boardId,
+    grid: {},
     generation: 1,
     lastEvolvedAt: Date.now(),
     isExtinct: false,
     spawned_at: Date.now(),
   });
+  console.log("new board init");
+  const board: Board | null = await redis.hgetall(`board:${boardId}`);
+
   if (board) {
     console.log("board expiration set");
     await redis.expire(`board:${board.boardId}`, 1388389425);
@@ -436,8 +451,95 @@ app.frame("/finish_new_board/:boardId/:pattern", async (c) => {
   console.log("new board user: " + displayName);
   if (displayName) {
     await redis.zincrby("userGenerations", 1, displayName);
-    // await redis.hset(`board:${boardId}`, "users", [displayName]);
+    await redis.hset(`board:${boardId}`, {
+      users: [displayName],
+      lastEvolvedUser: displayName,
+    });
+    console.log("user generations incremented");
     // await redis.hset(`board:${boardId}`, "lastEvolvedUser", displayName);
+  }
+  const patterns: Record<string, number[][]> = {
+    glider: [
+      [0, 1],
+      [1, 2],
+      [2, 0],
+      [2, 1],
+      [2, 2],
+    ],
+    blinker: [
+      [1, 0],
+      [1, 1],
+      [1, 2],
+    ],
+    glider_gun: [
+      [5, 1],
+      [5, 2],
+      [6, 1],
+      [6, 2],
+      [5, 11],
+      [6, 11],
+      [7, 11],
+      [4, 12],
+      [8, 12],
+      [3, 13],
+      [9, 13],
+      [3, 14],
+      [9, 14],
+      [6, 15],
+      [4, 16],
+      [8, 16],
+      [5, 17],
+      [6, 17],
+      [7, 17],
+      [6, 18],
+      [3, 21],
+      [4, 21],
+      [5, 21],
+      [3, 22],
+      [4, 22],
+      [5, 22],
+      [2, 23],
+      [6, 23],
+      [1, 25],
+      [2, 25],
+      [6, 25],
+      [7, 25],
+      [3, 35],
+      [4, 35],
+      [3, 36],
+      [4, 36],
+    ],
+  };
+  if (pattern in patterns) {
+    const grid = board?.grid;
+    if (grid) {
+      console.log("grid found");
+      const init_grid: CellGrid = initGrid();
+      const newGrid = applyPattern(init_grid, patterns[pattern]);
+      await redis.hset(`board:${boardId}`, {
+        grid: JSON.stringify(newGrid),
+      });
+      console.log("pattern applied");
+    }
+  }
+
+  if (pattern === "random") {
+    const grid = board?.grid;
+    if (grid) {
+      console.log("grid found");
+      const init_grid = initGrid();
+      const random_pattern: number[][] = [];
+      for (let i = 0; i < HEIGHT; i++) {
+        for (let j = 0; j < WIDTH; j++) {
+          if (Math.random() > 0.5) random_pattern.push([i, j]);
+        }
+      }
+      const newGrid = applyPattern(init_grid, random_pattern);
+      await redis.hset(`board:${boardId}`, {
+        grid: JSON.stringify(newGrid),
+      });
+      console.log("random pattern applied");
+    }
   }
 
   const txUrl = transactionId ? arbiUrl(transactionId) : null;
