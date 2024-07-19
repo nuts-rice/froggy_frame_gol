@@ -22,6 +22,8 @@ import {
 } from "../indexer/indexer";
 import { CellGrid } from "../indexer/indexer";
 import { arbiUrl } from "../constants";
+import { QueryParameter } from "@cowprotocol/ts-dune-client";
+import { dune, getPatternsData } from "../lib/dune";
 
 type BoardState = {
   board: CellGrid;
@@ -520,6 +522,8 @@ app.frame("/finish_new_board/:boardId/:pattern", async (c) => {
         grid: JSON.stringify(newGrid),
       });
       console.log("pattern applied");
+      const pattern_data_url = getPatternsData(pattern);
+      console.log("pattern data url: " + pattern_data_url);
     }
   }
 
@@ -815,11 +819,8 @@ export const {
   vars,
 } = createSystem();
 
-// const isEdgeFunction = typeof EdgeFunction !== "undefined";
-// const isProduction = isEdgeFunction || import.meta.env?.MODE !== "development";
-
-devtools(app, { serveStatic });
-
+if (import.meta.env?.MODE === "development") devtools(app, { serveStatic });
+else devtools(app, { assetsPath: "/.frog" });
 export const GET = handle(app);
 export const POST = handle(app);
 export default app;

@@ -10,6 +10,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@cowprotocol/ts-dune-client": "^0.0.2",
     "@neynar/nodejs-sdk": "^1.33.1",
     "@syndicateio/syndicate-node": "^1.0.1",
     "@types/node": "^20.14.8",
@@ -34,6 +35,6 @@
     "@types/uuid": "^10.0.0",
     "tsx": "^4.7.1",
     "typescript": "^5.3.3",
-    "vercel": "^34.2.8"
+    "vercel": "^34.4.0"
   }
 }
