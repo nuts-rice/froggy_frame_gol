@@ -19,6 +19,7 @@ import {
   getLiveNeighbors,
   getCellIdx,
 } from "../indexer/indexer";
+import { CellGrid } from "../indexer/indexer";
 export const height = 40;
 export const width = 40;
 export const MAX_BOARD_GENERATIONS = 150;
@@ -27,7 +28,7 @@ type Position = {
   y: number;
 };
 
-export type CellGrid = Record<string, boolean[]>;
+// export type CellGrid = Record<string, boolean[]>;
 
 export type Cell = {
   position: Position;

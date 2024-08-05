@@ -35,7 +35,7 @@ export const app = new Frog<{ State: BoardState }>({
   basePath: "/api",
   hub: neynarClient.hub(),
   verify: "silent",
-  browserLocation: "/:path",
+  browserLocation: "/:choose_pattern",
   initialState: {
     board: {},
   },
@@ -46,6 +46,26 @@ const HOST =
   "https://froggyframegol-nutsrices-projects.vercel.app/";
 
 // app.route("/images", images);
+
+app.frame("/frame/:choose_pattern", async (c) => {
+  return c.res({
+    image: (
+      <div tw="bg-black h-full flex flex-col items-center justify-center">
+        <h1> Game of Life </h1>
+        <p> Create board view </p>
+
+        <p>
+          Evolve on{" "}
+          <a
+            className="text-fc-purple underline"
+            href="https://warpcast.com/0x0f/"
+            target="_blank"
+          ></a>{" "}
+        </p>
+      </div>
+    ),
+  });
+});
 
 app.frame("/", async (c) => {
   const env = c.env as any;
@@ -73,7 +93,8 @@ app.frame("/choose_patterns", async (c) => {
     glider_gun: "glider_gun",
     random: "random",
   };
-  if (buttonValue in actions) {
+
+  if (buttonValue && buttonValue in actions) {
     return c.res({
       image: `/choose_patterns_img/${boardId}`,
       action: `/finish_new_board/${boardId}/${actions[buttonValue]}`,
@@ -283,7 +304,7 @@ app.frame("/debug_evolve/:boardId", async (c) => {
     );
     // await redis.zincrby('userGenerations', 1, board.userGenerations[username]);
 
-    const grid = board?.grid;
+    const grid: CellGrid = board?.grid;
     advanceGrid(grid);
   }
 
@@ -547,11 +568,14 @@ app.frame("/finish_new_board/:boardId/:pattern", async (c) => {
   }
 
   const txUrl = transactionId ? arbiUrl(transactionId) : null;
+  const new_board_target_url = "/choose_patterns";
+
   return c.res({
     image: `/boad_img/${boardId}`,
     intents: [
       txUrl ? <Button.Link href={txUrl}> View Tx </Button.Link> : null,
-      <Button value="New Board">New Board</Button>,
+      <Button action={new_board_target_url}> New Board </Button>,
+      <Button value="patternData">Who else chose this pattern? </Button>,
     ],
   });
 });
@@ -570,8 +594,8 @@ app.frame("/finish_evolve/:boardId", async (c) => {
   await redis.hincrby(`board:${boardId}`, "generation", 1);
   console.log("board generation incremented : generation #", board?.generation);
   await redis.zincrby("userGenerations", 1, displayName);
-  const grid = board?.grid || {};
-  const newGrid = advanceGrid(grid);
+  const grid = board?.grid || [];
+  const newGrid: CellGrid = advanceGrid(grid);
   await redis.hset(`board:${boardId}`, {
     grid: JSON.stringify(newGrid),
     lastEvolvedUser: displayName,
